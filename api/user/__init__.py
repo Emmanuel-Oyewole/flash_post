@@ -1,2 +1,3 @@
-from api.config.database import Base
 from .model import User
+
+from .route import router

@@ -1,2 +1,2 @@
-from api.config.database import Base
 from .model import Blog, Comment
+from .model import blog_likes

@@ -5,7 +5,8 @@ class Settings(BaseSettings):
     Settings for the application.
     """
     # Database settings
-    postgres_url: str 
+    postgres_url: str
+    debug: bool = False 
 
     model_config = SettingsConfigDict(env_file=".env")
 

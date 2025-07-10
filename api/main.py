@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.config.settings import settings
 from api.config.database import sessionmanager
+from api.user import router as user_router
+from api.user.model import User  # noqa
+from api.blogs.model import Blog, Comment  # noqa
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -25,6 +28,10 @@ app.add_middleware(
     allow_credentials=True,
 )
 
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Flash Blog API!"}
+
+
+app.include_router(user_router)

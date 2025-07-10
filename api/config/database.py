@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 
 from .settings import settings
+from .helpers import logger
 
 engine = create_async_engine(settings.postgres_url)
 SessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
@@ -39,18 +40,22 @@ class DatabaseSessionManager:
         """
         if self._engine is None:
             raise Exception("Database engine is not initialized.")
-        await self._engine.dispose()
 
+        logger.info("Closing Connection to DB... ")
+        await self._engine.dispose()
         self._engine = None
         self._sessionmaker = None
+        logger.info("Connection to DB closed.")
 
     @asynccontextmanager
     async def connect(self) -> AsyncIterator[AsyncConnection]:
         """
         Context manager for connecting to the database.
         """
+        logger.info("Trying to connect to DB...")
         async with self._engine.begin() as connection:
             try:
+                logger.info("Connection to DB successful")
                 yield connection
             except Exception:
                 await connection.rollback()
@@ -63,9 +68,8 @@ class DatabaseSessionManager:
         """
         if self._sessionmaker is None:
             raise Exception("Database sessionmaker is not initialized.")
-
-        session = session._sessionmaker()
-
+        logger.info("Initializing DB session...")
+        session = self._sessionmaker()
         try:
             yield session
         except Exception:
@@ -74,7 +78,9 @@ class DatabaseSessionManager:
         finally:
             await session.close()
 
+
 sessionmanager = DatabaseSessionManager(settings.postgres_url, {"echo": True})
+
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
