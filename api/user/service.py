@@ -15,7 +15,11 @@ class UserRepository:
     async def register_user(self, user_data: CreateUser) -> User:
 
         hashed_password = hash_password(user_data.password)
-        new_user = User(hashed_password=hashed_password,email=user_data.email, full_name=user_data.full_name)
+        new_user = User(
+            hashed_password=hashed_password,
+            email=user_data.email,
+            full_name=user_data.full_name,
+        )
 
         self.db.add(new_user)
         await self.db.commit()
@@ -23,10 +27,14 @@ class UserRepository:
 
         return new_user
 
-    async def get_by_id(self, id: int):
-        pass
+    async def get_user_by_id(self, id: int):
+        user = select(User).where(User.id == id)
+        result = await self.db.execute(user)
+        if not result:
+            return None
+        return result.scalars().first()
 
-    async def get_by_email(self, email: str) -> User | None:
+    async def get_user_by_email(self, email: str) -> User | None:
         user = select(User).where(User.email == email)
         result = await self.db.execute(user)
         return result.scalars().first()

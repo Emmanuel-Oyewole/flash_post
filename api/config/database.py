@@ -79,7 +79,7 @@ class DatabaseSessionManager:
             await session.close()
 
 
-sessionmanager = DatabaseSessionManager(settings.postgres_url, {"echo": True})
+sessionmanager = DatabaseSessionManager(settings.postgres_url, {"echo": settings.debug})
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

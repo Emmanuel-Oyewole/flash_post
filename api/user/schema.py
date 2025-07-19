@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, UUID4
 
 
 class UserBase(BaseModel):
@@ -11,5 +11,18 @@ class CreateUser(UserBase):
 
 
 class CreateUserResp(BaseModel):
-    id: int
+    id: UUID4
     user_info: UserBase
+
+class AccessTokenResp(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+class RefreshTokenReq(BaseModel):
+    token: str = Field(...)
+class RefreshTokenResp(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
