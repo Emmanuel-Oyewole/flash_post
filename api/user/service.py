@@ -1,50 +1,69 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import select
-from fastapi import Depends
-from .schema import CreateUser
+from fastapi import Depends, HTTPException, status
+from .schema import CreateUser, UpdateUser
 from .model import User
 from api.config.database import get_db_session
 from api.utils.auth import hash_password
+from ..shared.user_repo import UserRepository
 
 
-class UserRepository:
+class UserService:
 
-    def __init__(self, db: Session) -> None:
-        self.db = db
+    def __init__(self, user_repo: UserRepository) -> None:
+        self.user_repo = user_repo
 
     async def register_user(self, user_data: CreateUser) -> User:
-
+        """
+        Registers a new user.
+        Handles password hashing and checks for existing users.
+        """
+        existing_user = await self.user_repo.get_user_by_email(user_data.email)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="email already exists",
+            )
         hashed_password = hash_password(user_data.password)
-        new_user = User(
-            hashed_password=hashed_password,
+
+        user_data_for_repo = CreateUser(
             email=user_data.email,
             full_name=user_data.full_name,
+            password=hashed_password,
         )
+        return await self.user_repo.create_user(user_data_for_repo)
 
-        self.db.add(new_user)
-        await self.db.commit()
-        await self.db.refresh(new_user)
+    async def get_user_by_id(self, user_id: str) -> User | None:
+        """
+        Retrieves a user by their ID.
+        """
+        user = await self.user_repo.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        return user
 
-        return new_user
+    async def update_user(self, user_id: str, payload: UpdateUser) -> User:
+        """
+        Updates user information.
+        """
+        user = await self.user_repo.get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
 
-    async def get_user_by_id(self, id: int):
-        user = select(User).where(User.id == id)
-        result = await self.db.execute(user)
-        if not result:
-            return None
-        return result.scalars().first()
+        updated_user = await self.user_repo.update_user(user_id,payload)
+        return updated_user
 
-    async def get_user_by_email(self, email: str) -> User | None:
-        user = select(User).where(User.email == email)
-        result = await self.db.execute(user)
-        return result.scalars().first()
-
-    async def update_user(self, email: str):
-        pass
-
-    async def delete_user(self, email: str):
-        pass
-
-
-async def get_user_repo(db: Session = Depends(get_db_session)) -> UserRepository:
-    return UserRepository(db)
+    async def delete_user(self, id: str):
+        """Deletes a user by ID."""
+        user_to_delete = await self.user_repo.get_user_by_id(id)
+        if not user_to_delete:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+        await self.user_repo.delete_user(user_to_delete)

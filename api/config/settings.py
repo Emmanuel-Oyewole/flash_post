@@ -17,7 +17,9 @@ class Settings(BaseSettings):
     refresh_token_secret_key: str = ""
     refresh_token_expires_day: int = 7
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=False, extra="ignore", env_file_encoding="utf-8"
+    )
 
 
 settings = Settings()

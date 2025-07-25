@@ -5,7 +5,6 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from api.config.database import Base
 
-
 class User(Base):
     """
     User model for the application.
