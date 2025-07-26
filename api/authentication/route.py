@@ -5,16 +5,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from api.user.model import User
 from .schema import (
-    CreateUser,
-    CreateUserResp,
     AccessTokenResp,
     RefreshTokenReq,
     RefreshTokenResp,
 )
-from ..user.service import UserService
 from ..dependencies.auth_dep import (
     get_current_user,
-    get_user_service,
     get_auth_service,
 )
 
@@ -22,20 +18,6 @@ from ..authentication.service import AuthService
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
-
-
-@router.post("/register", response_model=CreateUserResp)
-async def register_user(
-    payload: CreateUser, user_service: UserService = Depends(get_user_service)
-):
-    """
-    Endpoint to register a new user.
-    """
-    try:
-        user = await user_service.register_user(payload)
-        return {"id": user.id, "user_info": user}
-    except Exception as e:
-        raise e
 
 
 @router.post("/access-token", response_model=AccessTokenResp)
