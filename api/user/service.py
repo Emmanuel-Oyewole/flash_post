@@ -1,5 +1,4 @@
-from sqlalchemy.orm import Session
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 from .schema import CreateUser, UpdateUser
 from .model import User
 from api.config.database import get_db_session
@@ -58,12 +57,12 @@ class UserService:
         updated_user = await self.user_repo.update_user(user_id,payload)
         return updated_user
 
-    async def delete_user(self, id: str):
+    async def delete_user(self, user_id: str) -> None:
         """Deletes a user by ID."""
-        user_to_delete = await self.user_repo.get_user_by_id(id)
+        user_to_delete = await self.user_repo.get_user_by_id(user_id)
         if not user_to_delete:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found",
             )
-        await self.user_repo.delete_user(user_to_delete)
+        await self.user_repo.delete_user(user_id)

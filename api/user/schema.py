@@ -1,4 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field, UUID4
+from uuid import UUID
+from pydantic import BaseModel, EmailStr, Field
+from ..shared.schema import PublicUser
 
 
 class UserBase(BaseModel):
@@ -6,28 +8,18 @@ class UserBase(BaseModel):
     email: EmailStr = Field(...)
 
 
+class UpdateUser(UserBase):
+    pass
+
+
+class GetUser(PublicUser):
+ pass
+
+
 class CreateUser(UserBase):
     password: str = Field(...)
 
 
-class CreateUserResp(BaseModel):
-    id: UUID4
-    user_info: UserBase
-
-class AccessTokenResp(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-class RefreshTokenReq(BaseModel):
-    token: str = Field(...)
-class RefreshTokenResp(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
-
-class UpdateUser(UserBase):
-    pass    
-
-
-
+class PublicUserResp(BaseModel):
+    id: UUID
+    user_info: PublicUser
