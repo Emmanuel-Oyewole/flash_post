@@ -101,3 +101,5 @@ ENV/
 env/
 
 export POSTGRES_URL="postgresql+asyncpg://dev-user:password@localhost:5432/dev_db"
+
+.resources/
