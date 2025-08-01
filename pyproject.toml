@@ -13,4 +13,6 @@ dependencies = [
     "asyncpg>=0.30.0",
     "passlib[bcrypt]>=1.7.4",
     "pyjwt",
+    "redis>=6.2.0",
+    "fastapi-mail>=1.5.0",
 ]

@@ -2,6 +2,7 @@ from datetime import timedelta
 import uuid
 from fastapi import HTTPException, status
 
+from api.shared.otp_repo import OTPRepository
 from api.user.model import User
 from ..config.settings import settings
 from ..config.helpers import logger
@@ -9,11 +10,15 @@ from ..user.service import UserRepository
 from .schema import TokenResponse
 from ..utils.auth import create_jwt_token, decode_jwt_token
 from ..utils.auth import verify_password
+from ..shared.otp_repo import OTPRepository
+from ..notification.service import NotificationService
 
 
 class AuthService:
-    def __init__(self, user_repo: UserRepository):
+    def __init__(self, user_repo: UserRepository, otp_repo: OTPRepository, notification_service: NotificationService) -> None:
         self._user_repo = user_repo
+        self._otp_repo = otp_repo
+        self._notification_service = notification_service
 
     async def authenticate_user(self, email: str, password: str) -> User | None:
         """
@@ -129,3 +134,14 @@ class AuthService:
             )
 
         return await self.create_auth_tokens(user.id)
+
+    async def generate_and_send_otp(self, user_id: uuid.UUID) -> str:
+        """
+        Generates a one-time password (OTP) for the user.
+        """
+
+    async def verify_otp(self, user_id: uuid.UUID, otp: str) -> bool:
+        """
+        Verifies the provided OTP for the user.
+        Returns True if the OTP is valid, False otherwise.
+        """
