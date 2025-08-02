@@ -56,6 +56,13 @@ class UserRepository:
         await self.db.commit()
         await self.db.refresh(user)
         return user
+    
+    async def update_user_password(self, user_id: str, new_password: str):
+        user = await self.get_user_by_id(user_id)
+        user.hashed_password = new_password
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
 
     async def delete_user(self, user_id: str):
         user = await self.get_user_by_id(user_id)

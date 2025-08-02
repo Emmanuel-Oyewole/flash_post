@@ -13,6 +13,14 @@ class Settings(BaseSettings):
     redis_db: int = 0
     redis_password: Optional[str] = None
 
+    #email settings
+    brevo_smtp_host: str = ""
+    brevo_smtp_port: int = 587
+    brevo_smtp_username: str = ""
+    brevo_smtp_password: str = ""
+    brevo_sender: str = ""
+    no_reply_email: str = ""
+
     # OTP settings
     otp_secret: str = ""
     otp_expires_seconds: int = 300

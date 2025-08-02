@@ -9,7 +9,7 @@ class OTPRepository:
     def __init__(self, redis_client: Redis) -> None:
         self.redis_client = redis_client
 
-    async def create_otp(self, user_id: uuid.UUID, code: str) -> None:
+    async def cache_otp(self, user_id: uuid.UUID, code: str) -> None:
         """
         Store the OTP for a user in Redis.
         """

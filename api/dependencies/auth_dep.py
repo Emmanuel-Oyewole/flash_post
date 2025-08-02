@@ -13,17 +13,28 @@ from ..user.model import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/access-token")
 
-async def get_otp_repo(redis_client: Redis = Depends(get_redis_client)) -> OTPRepository:
+
+async def get_otp_repo(
+    redis_client: Redis = Depends(get_redis_client),
+) -> OTPRepository:
     """
     Dependency to get the OTPRepository instance.
     """
     return OTPRepository(redis_client)
+
 
 async def get_user_repo(db: AsyncSession = Depends(get_db_session)) -> UserRepository:
     """
     Dependency to get the UserRepository instance.
     """
     return UserRepository(db)
+
+
+async def get_notification_service() -> NotificationService:
+    """
+    Dependency to provide a NotificationService instance.
+    """
+    return NotificationService()
 
 
 async def get_user_service(
@@ -34,14 +45,16 @@ async def get_user_service(
 
 
 async def get_auth_service(
-    user_repo: UserRepository = Depends(get_user_repo), otp_repo: OTPRepository = Depends(get_otp_repo)
+    user_repo: UserRepository = Depends(get_user_repo),
+    otp_repo: OTPRepository = Depends(get_otp_repo),
+    notification_service: NotificationService = Depends(get_notification_service),
 ):
     """
     Dependency to get the AuthService instance.
     """
     from ..authentication.service import AuthService
 
-    return AuthService(user_repo, otp_repo)
+    return AuthService(user_repo, otp_repo, notification_service)
 
 
 async def get_current_user(

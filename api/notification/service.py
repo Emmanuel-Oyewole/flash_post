@@ -6,20 +6,18 @@ from ..config.settings import settings
 
 
 # Jinja2 environment setup to load templates
-env = Environment(loader=FileSystemLoader("api/notification/template"))
+env = Environment(loader=FileSystemLoader("notification/template"))
 
 # Connection configuration for fastapi-mail
 conf = ConnectionConfig(
-    MAIL_USERNAME=settings.MAIL_USERNAME,
-    MAIL_PASSWORD=settings.MAIL_PASSWORD,
-    MAIL_FROM=settings.MAIL_FROM,
-    MAIL_PORT=settings.MAIL_PORT,
-    MAIL_SERVER=settings.MAIL_SERVER,
-    MAIL_FROM_NAME=settings.MAIL_FROM_NAME,
-    MAIL_TLS=settings.MAIL_TLS,
-    MAIL_SSL=settings.MAIL_SSL,
-    USE_CREDENTIALS=settings.USE_CREDENTIALS,
-    VALIDATE_CERTS=settings.VALIDATE_CERTS,
+    MAIL_USERNAME=settings.brevo_smtp_username,
+    MAIL_PASSWORD=settings.brevo_smtp_password,
+    MAIL_FROM=settings.brevo_sender,
+    MAIL_PORT=settings.brevo_smtp_port,
+    MAIL_SERVER=settings.brevo_smtp_host,
+    MAIL_FROM_NAME=settings.brevo_sender,
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
 )
 fast_mail = FastMail(conf)
 
@@ -54,10 +52,43 @@ class NotificationService:
     async def send_reset_password_email(
         self,
         email: str,
-        token: str,
+        otp_code: str,
         background_tasks: BackgroundTasks,
     ):
         """
         Sends a reset password email to the user.
         """
-        pass
+        subject = "Reset Your Password"
+        template_name = "reset_password.html"
+        template_body = {
+            "otp_code": otp_code,
+            "otp_expires_in": settings.otp_expires_seconds,
+        }
+
+        await self.send_email(
+            recipients=[email],
+            subject=subject,
+            template_name=template_name,
+            template_body=template_body,
+            background_tasks=background_tasks,
+        )
+        return True
+
+    async def send_reset_password_confirmation(self, email: str, background_tasks: BackgroundTasks) -> None:
+        """
+        Sends a reset password confirmation email to the user.
+        """
+        subject = "Your Password Has Been Reset"
+        template_name = "reset_password_confirmation.html"
+        template_body = {
+            "email": email,
+        }
+
+        await self.send_email(
+            recipients=[email],
+            subject=subject,
+            template_name=template_name,
+            template_body=template_body,
+            background_tasks=background_tasks,
+        )
+        

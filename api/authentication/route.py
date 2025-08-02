@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -8,6 +8,8 @@ from .schema import (
     AccessTokenResp,
     RefreshTokenReq,
     RefreshTokenResp,
+    ForgotPasswordReq,
+    ResetPasswordReq,
 )
 from ..dependencies.auth_dep import (
     get_current_user,
@@ -56,17 +58,26 @@ async def refresh_access_token(
     return await auth_service.refresh_access_token(payload.token)
 
 
-@router.post("/forgot-password")
-async def forgot_password():
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(
+    payload: ForgotPasswordReq,
+    background_tasks: BackgroundTasks,
+    auth_service: AuthService = Depends(get_auth_service),
+):
     """
     Endpoint to handle forgot password functionality.
     This should send a reset link to the user's email.
     """
-    return "Forgot password endpoint"
+    await auth_service.generate_and_send_otp(payload.email, background_tasks)
+    return {"message": "OTP sent"}
 
 
 @router.post("/reset-password")
-async def reset_password():
+async def reset_password(
+    payload: ResetPasswordReq,
+    background_tasks: BackgroundTasks,
+    auth_service: AuthService = Depends(get_auth_service),
+):
     """
     Endpoint to reset the user's password.
     """
