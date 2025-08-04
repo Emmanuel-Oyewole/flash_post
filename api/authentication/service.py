@@ -1,19 +1,30 @@
 from datetime import timedelta
 import uuid
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 
+from api.shared.otp_repo import OTPRepository
 from api.user.model import User
 from ..config.settings import settings
 from ..config.helpers import logger
 from ..user.service import UserRepository
 from .schema import TokenResponse
 from ..utils.auth import create_jwt_token, decode_jwt_token
-from ..utils.auth import verify_password
+from ..utils.auth import verify_password, hash_password
+from ..utils.otp_helper import verify_otp_code
+from ..shared.otp_repo import OTPRepository
+from ..notification.service import NotificationService
 
 
 class AuthService:
-    def __init__(self, user_repo: UserRepository):
+    def __init__(
+        self,
+        user_repo: UserRepository,
+        otp_repo: OTPRepository,
+        notification_service: NotificationService,
+    ) -> None:
         self._user_repo = user_repo
+        self._otp_repo = otp_repo
+        self._notification_service = notification_service
 
     async def authenticate_user(self, email: str, password: str) -> User | None:
         """
@@ -129,3 +140,61 @@ class AuthService:
             )
 
         return await self.create_auth_tokens(user.id)
+
+    async def generate_and_send_otp(
+        self, email: str, background_tasks: BackgroundTasks
+    ) -> None:
+        """
+        Generates and sends one-time password (OTP) for the user.
+        """
+        user = await self._user_repo.get_user_by_email(email)
+        if not user:
+            logger.info(f"User with email {email} not found for OTP generation.")
+            return
+        otp_code = str(uuid.uuid4().int)[:6]  # Generate a 6-digit OTP
+        # Cache the OTP in Redis
+        await self._otp_repo.cache_otp(user.id, otp_code)
+
+        logger.info(f"sending OTP {otp_code} to user {user.email}")
+
+        # Send the OTP via email
+        await self._notification_service.send_reset_password_email(
+            email=email,
+            otp_code=otp_code,
+            background_tasks=background_tasks,
+        )
+
+    async def verify_otp_and_update_password(
+        self, email: str, otp: str, new_password: str, background_tasks: BackgroundTasks
+    ) -> User:
+        """
+        Verifies the provided OTP for the user.
+        Returns the user if the OTP is valid, raises an error otherwise.
+        """
+        user = await self._user_repo.get_user_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invalid email address",
+            )
+
+        # retrieve hashed the cached OTP from Redis
+        cached_otp = await self._otp_repo.get_otp(user.id)
+
+        if not cached_otp or not verify_otp_code(otp, cached_otp):
+            logger.info(f"Invalid OTP {otp} for user {email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired OTP",
+            )
+
+        # Invalidate the OTP after successful verification
+        await self._otp_repo.delete_otp(user.id)
+        # Update the user's password
+        hashed_password = hash_password(new_password)
+        await self._user_repo.update_user_password(user.id, hashed_password)
+        logger.info(f"Password updated successfully for user {email}")
+
+        await self._notification_service.send_reset_password_confirmation(email, background_tasks)
+
+        return user

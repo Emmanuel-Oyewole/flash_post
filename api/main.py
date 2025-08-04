@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.config.database import sessionmanager
+from api.config.redis_db import redis_manager
 from api.user import router as user_router
 from api.authentication import router as auth_router
 from api.blogs import router as blog_router
@@ -9,15 +10,16 @@ from api.user.model import User  # noqa
 from api.blogs.model import Blog, Comment  # noqa
 
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Application lifespan context manager to initialize the database.
     """
+    await redis_manager.connect()
     yield
     if sessionmanager._engine is not None:
         await sessionmanager.close()
+    await redis_manager.close()
 
 
 app = FastAPI(title="Flash Blog API", version="0.0.0", lifespan=lifespan)
