@@ -164,7 +164,9 @@ class AuthService:
             background_tasks=background_tasks,
         )
 
-    async def verify_otp_and_update_password(self, email: str, otp: str, new_password: str) -> User:
+    async def verify_otp_and_update_password(
+        self, email: str, otp: str, new_password: str, background_tasks: BackgroundTasks
+    ) -> User:
         """
         Verifies the provided OTP for the user.
         Returns the user if the OTP is valid, raises an error otherwise.
@@ -185,7 +187,7 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired OTP",
             )
-        
+
         # Invalidate the OTP after successful verification
         await self._otp_repo.delete_otp(user.id)
         # Update the user's password
@@ -193,6 +195,6 @@ class AuthService:
         await self._user_repo.update_user_password(user.id, hashed_password)
         logger.info(f"Password updated successfully for user {email}")
 
-        await self._notification_service.pas
+        await self._notification_service.send_reset_password_confirmation(email, background_tasks)
 
         return user

@@ -2,6 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from ..shared.schema import PublicUser
 
 from api.user.model import User
 from .schema import (
@@ -72,7 +73,7 @@ async def forgot_password(
     return {"message": "OTP sent"}
 
 
-@router.post("/reset-password")
+@router.post("/reset-password", status_code=status.HTTP_200_OK, response_model=PublicUser)
 async def reset_password(
     payload: ResetPasswordReq,
     background_tasks: BackgroundTasks,
@@ -81,4 +82,12 @@ async def reset_password(
     """
     Endpoint to reset the user's password.
     """
-    return "Reset password endpoint"
+    try:
+        verified_user = await auth_service.verify_otp_and_update_password(
+            payload.email, payload.otp_code, payload.new_password, background_tasks
+        )
+
+        return verified_user
+
+    except Exception as e:
+        raise e
