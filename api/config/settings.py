@@ -1,5 +1,10 @@
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
+from pathlib import Path
+
+# Get the project root directory (two levels up from this file)
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -13,7 +18,7 @@ class Settings(BaseSettings):
     redis_db: int = 0
     redis_password: Optional[str] = None
 
-    #email settings
+    # email settings
     brevo_smtp_host: str = ""
     brevo_smtp_port: int = 587
     brevo_smtp_username: str = ""
@@ -37,7 +42,10 @@ class Settings(BaseSettings):
     refresh_token_expires_day: int = 7
 
     model_config = SettingsConfigDict(
-        env_file=".env", case_sensitive=False, extra="ignore", env_file_encoding="utf-8"
+        env_file=PROJECT_ROOT / ".env",
+        case_sensitive=False,
+        extra="ignore",
+        env_file_encoding="utf-8",
     )
 
 

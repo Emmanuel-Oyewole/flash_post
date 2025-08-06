@@ -27,7 +27,10 @@ fileConfig(config.config_file_name)
 # from api.config.database import Base
 from api.config.database import Base
 from api.user import User
-from api.blogs import Blog, Comment
+from api.blogs import Blog
+from api.tag import Tag
+from api.comment import Comment
+from api.like import Like
 
 
 target_metadata = Base.metadata

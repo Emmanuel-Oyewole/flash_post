@@ -1,4 +1,5 @@
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from sqlalchemy import (
     Table,
     Column,
@@ -21,64 +22,30 @@ class Blog(Base):
 
     __tablename__ = "blogs"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    id: Mapped[UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, index=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     author_id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    view_count: Mapped[int] = mapped_column(Integer, default=0)
+    like_count: Mapped[int] = mapped_column(Integer, default=0)
+    comment_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
 
+    # Relationship
     author = relationship("User", back_populates="blogs")
-    comments = relationship("Comment", back_populates="blog")
-    liked_by = relationship(
-        "User",
-        secondary="blog_likes",
-        back_populates="liked_blogs",
-    )
+    comments = relationship("Comment", back_populates="blog", cascade="all, delete-orphan")
+    likes = relationship("Like", back_populates="blog", cascade="all, delete-orphan")
+    tags = relationship("Tag", secondary="blog_tags", back_populates="blogs")
 
     def __repr__(self):
         return f"<Blog(id={self.id}, title={self.title}, author_id={self.author_id})>"
 
 
-class Comment(Base):
-    """
-    Comment model for the application.
-    """
-
-    __tablename__ = "comments"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    user_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
-    blog_id: Mapped[int] = mapped_column(
-        ForeignKey("blogs.id", ondelete="CASCADE"), nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-
-    user = relationship("User", back_populates="comments")
-    blog = relationship("Blog", back_populates="comments")
-
-    def __repr__(self):
-        return (
-            f"<Comment(id={self.id}, blog_id={self.blog_id}, user_id={self.user_id})>"
-        )
 
 
-blog_likes = Table(
-    "blog_likes",
-    Base.metadata,
-    Column(
-        "user_id", UUID, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    ),
-    Column(
-        "blog_id", Integer, ForeignKey("blogs.id", ondelete="CASCADE"), primary_key=True
-    ),
-    Column("created_at", DateTime, default=datetime.utcnow),
-    UniqueConstraint("user_id", "blog_id", name="uq_user_blog_like"),
-)

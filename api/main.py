@@ -7,7 +7,10 @@ from api.user import router as user_router
 from api.authentication import router as auth_router
 from api.blogs import router as blog_router
 from api.user.model import User  # noqa
-from api.blogs.model import Blog, Comment  # noqa
+from api.blogs.model import Blog  # noqa
+from api.comment.model import Comment  # noqa
+from api.like.model import Like  # noqa
+from api.tag.model import Tag  # noqa
 
 
 @asynccontextmanager
