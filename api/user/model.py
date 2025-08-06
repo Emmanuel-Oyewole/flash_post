@@ -25,9 +25,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
-    first_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    last_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    middle_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    first_name: Mapped[str] = mapped_column(String(255), nullable=True, default="")
+    last_name: Mapped[str] = mapped_column(String(255), nullable=True, default="")
+    middle_name: Mapped[str] = mapped_column(String(255), nullable=True, default="")
     bio: Mapped[str] = mapped_column(Text, nullable=True, default="")
     avatar: Mapped[str] = mapped_column(
         String, default="https://avatar.iran.liara.run/public/boy?username=Ash"

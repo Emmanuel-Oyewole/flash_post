@@ -41,6 +41,14 @@ class Settings(BaseSettings):
     refresh_token_secret_key: str = ""
     refresh_token_expires_day: int = 7
 
+    # Password policy
+    min_length: int = 10
+    max_length: int = 20
+    includes_special_chars: bool = True
+    includes_numbers: bool = True
+    includes_lowercase: bool = True
+    includes_uppercase: bool = True
+
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         case_sensitive=False,
