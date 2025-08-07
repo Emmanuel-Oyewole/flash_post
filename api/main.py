@@ -6,6 +6,9 @@ from api.config.redis_db import redis_manager
 from api.user import router as user_router
 from api.authentication import router as auth_router
 from api.blogs import router as blog_router
+from api.comment import router as comment_router
+from api.like import router as like_router
+from api.tag import router as tag_router
 from api.user.model import User  # noqa
 from api.blogs.model import Blog  # noqa
 from api.comment.model import Comment  # noqa
@@ -45,3 +48,6 @@ async def root():
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(blog_router)
+app.include_router(comment_router)
+app.include_router(like_router)
+app.include_router(tag_router)
