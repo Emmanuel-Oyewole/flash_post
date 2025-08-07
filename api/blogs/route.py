@@ -3,51 +3,41 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/blog", tags=["Blogs"])
 
 
-@router.post("/create-blog")
+@router.post("/")
 async def create_blog():
     return "Create blog endpoint"
 
 
-@router.get("/get-blog")
-async def get_blog():
-    return "Get blog endpoint"
+@router.get("/")
+async def list_blogs():
+    return "List all blogs endpoint"
 
 
-@router.put("/update-blog")
-async def update_blog():
-    return "Update blog endpoint"
+@router.get("/{blog_id}")
+async def get_blog(blog_id: str):
+    return f"Get a specific blog endpoint: {blog_id}"
 
 
-@router.delete("/delete-blog")
-async def delete_blog():
-    return "Delete blog endpoint"
+@router.get("/slug/{slug}")
+async def get_blog_by_slug(slug: str):
+    return f"Get blog by slug endpoint: {slug}"
 
 
-@router.get("/get-all-blogs")
-async def get_all_blogs():
-    return "Get all blogs endpoint"
+@router.put("/{blog_id}")
+async def update_blog(blog_id: str):
+    return f"Update blog endpoint: {blog_id}"
 
 
-@router.post("/like-blog")
-async def like_blog():
-    return "Like blog endpoint"
+@router.delete("/{blog_id}")
+async def delete_blog(blog_id: str):
+    return f"Delete blog endpoint: {blog_id}"
 
 
-@router.post("/unlike-blog")
-async def unlike_blog():
-    return "Unlike blog endpoint"
+@router.post("/{blog_id}/publish")
+async def publish_blog(blog_id: str):
+    return f"Publish blog endpoint: {blog_id}"
 
+@router.post("/{blog_id}/unpublish")
+async def unpublish_blog(blog_id: str):
+    return f"Unpublish blog endpoint: {blog_id}"
 
-@router.post("/comment-blog")
-async def comment_blog():
-    return "Comment blog endpoint"
-
-
-@router.delete("/delete-comment")
-async def delete_comment():
-    return "Delete comment endpoint"
-
-
-@router.get("/get-comments")
-async def get_comments():
-    return "Get comments endpoint"
