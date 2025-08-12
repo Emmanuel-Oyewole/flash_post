@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from api.user.model import User
+from ..user.model import User
 from .schema import UpdateUser, CreateUser, PublicUserResp
 from .service import UserService
 from ..dependencies.auth_dep import get_current_user, get_user_service

@@ -1,11 +1,26 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from ..user.model import User
+from ..dependencies.blog_deps import get_blog_service
+from ..dependencies.auth_dep import get_current_user
+from .service import BlogService
+from .schema import BlogCreate, BlogListResponse
 
 router = APIRouter(prefix="/blog", tags=["Blogs"])
 
 
-@router.post("/")
-async def create_blog():
-    return "Create blog endpoint"
+@router.post("/",)
+async def create_blog(
+    payload: BlogCreate,
+    current_user: User = Depends(get_current_user),
+    blog_service: BlogService = Depends(get_blog_service),
+):
+    try:
+        new_blog = await blog_service.create_blog(payload, current_user.id)
+
+        return new_blog
+    
+    except Exception as e:
+        raise e
 
 
 @router.get("/")
@@ -37,7 +52,7 @@ async def delete_blog(blog_id: str):
 async def publish_blog(blog_id: str):
     return f"Publish blog endpoint: {blog_id}"
 
+
 @router.post("/{blog_id}/unpublish")
 async def unpublish_blog(blog_id: str):
     return f"Unpublish blog endpoint: {blog_id}"
-
