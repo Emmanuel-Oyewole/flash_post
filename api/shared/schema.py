@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr, Field, UUID4
+from pydantic import BaseModel, EmailStr, Field, UUID4, ConfigDict
 from datetime import datetime
+
 
 class PublicUser(BaseModel):
     first_name: str | None = None
@@ -8,10 +9,9 @@ class PublicUser(BaseModel):
     email: EmailStr
     avatar: str | None = None
     role: str
-    email_verified: bool 
+    email_verified: bool
     is_active: bool
     created_at: datetime
     updated_at: datetime
 
-
-
+    model_config = ConfigDict(from_attributes=True)

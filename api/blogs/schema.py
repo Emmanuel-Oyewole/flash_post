@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from fastapi import Query
 from typing import List, Optional
 from datetime import datetime
 import uuid
@@ -53,7 +54,7 @@ class BlogResponse(BaseModel):
     author: PublicUser
     tags: List[TagBase]
 
-    model_config = ConfigDict(from_attributes=True,arbitrary_types_allowed=True)
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
 
 class BlogCreate(BaseModel):
@@ -63,9 +64,9 @@ class BlogCreate(BaseModel):
     content: str = Field(
         ..., min_length=1, max_length=50000, description="Blog content (plain text)"
     )
-    summary: Optional[str] = Field(
-        None, max_length=500, description="Brief blog summary"
-    )
+    # summary: Optional[str] = Field(
+    #     None, max_length=500, description="Brief blog summary"
+    # )
     tags: List[str] = Field(default=[], description="List of tag names")
     is_published: bool = Field(default=False, description="Whether blog is published")
 
@@ -81,11 +82,11 @@ class BlogCreate(BaseModel):
             raise ValueError("Content cannot be empty")
         return v.strip()
 
-    @field_validator("summary")
-    def summary_must_not_be_empty(cls, v):
-        if v is not None and not v.strip():
-            raise ValueError("Summary cannot be empty")
-        return v.strip() if v else None
+    # @field_validator("summary")
+    # def summary_must_not_be_empty(cls, v):
+    #     if v is not None and not v.strip():
+    #         raise ValueError("Summary cannot be empty")
+    #     return v.strip() if v else None
 
     @field_validator("tags")
     def validate_tags(cls, v):
@@ -215,3 +216,4 @@ class BlogListResponse(BaseModel):
 
     class Config:
         from_attributes = True
+

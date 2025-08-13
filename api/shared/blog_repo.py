@@ -31,20 +31,24 @@ class BlogRepository:
             include_drafts: Whether to include unpublished blogs
             load_relations: Whether to eager load author and tags
         """
-        query = self.db.query(Blog)
+        query = select(Blog).filter(Blog.id == blog_id)
+
+        # Optional filtering for drafts
+        if not include_drafts:
+            query = query.filter(Blog.is_published.is_(True))
 
         # Eager load relationships to avoid N+1 queries
         if load_relations:
-            query = query.options(joinedload(Blog.author), selectinload(Blog.tags))
+            # Use selectinload for efficient eager loading with async sessions
+            query = query.options(selectinload(Blog.author), selectinload(Blog.tags))
 
-        # Apply ID filter
-        query = query.filter(Blog.id == blog_id)
+        # Execute the query asynchronously and get the result
+        result = await self.db.execute(query)
 
-        # Filter by published status if needed
-        if not include_drafts:
-            query = query.filter(Blog.is_published == True)
+        # Get the single result or None if not found
+        blog = result.scalar_one_or_none()
 
-        return query.first()
+        return blog
 
     def get_by_slug(
         self, slug: str, include_drafts: bool = False, load_relations: bool = True
@@ -76,7 +80,7 @@ class BlogRepository:
             exclude_id: Blog ID to exclude from check (for updates)
         """
         # Create the select statement
-        query = await select(Blog).filter(Blog.slug == slug)
+        query = select(Blog).filter(Blog.slug == slug)
 
         if exclude_id:
             query = query.filter(Blog.id != exclude_id)
@@ -85,7 +89,7 @@ class BlogRepository:
         result = await self.db.execute(query)
 
         # Fetch the first object, or None if no results
-        blog = result.scalar().first()
+        blog = result.scalars().first()
 
         return blog is not None
 
@@ -130,7 +134,9 @@ class BlogRepository:
             await self.db.refresh(blog)
 
             # 6. Load relationships explicitly
-            blog = await self.get_by_id(blog.id, include_drafts=True, load_relations=True)
+            blog = await self.get_by_id(
+                blog.id, include_drafts=True, load_relations=True
+            )
 
             return blog
 

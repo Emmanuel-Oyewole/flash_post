@@ -7,34 +7,6 @@ from ..shared.tag_repo import TagRepository
 from ..blogs.schema import BlogCreate
 from ..utils.slug_helper import generate_seo_optimized_slug
 
-# class BlogService:
-#     def __init__(self, blog_repo: BlogRepository, tag_repo: TagRepository) -> None:
-#         self.blog_repo = blog_repo
-#         self.tag_repo = tag_repo
-
-#     async def create_blog(self, blog_data: BlogCreate, author_id: UUID):
-#         """
-#         Create a new blog post with tags.
-#         """
-
-#         try:
-#             #Generate slug from title
-#             slug = await generate_seo_optimized_slug(text=blog_data.title)
-
-#             # Prepare blog data
-#             db_blog_data = {
-#                 "title": blog_data.title,
-#                 "content": blog_data.content,
-#                 "slug": slug,
-#                 "author_id": author_id,
-#                 "is_published": blog_data.is_published,
-#                 "published_at": datetime.now(timezone.utc) if blog_data.is_published else None
-#             }
-
-#             # Create blog
-#             blog = await self.blog_repo.create_blog(db_blog_data)
-
-
 from typing import List, Optional
 from uuid import uuid4
 
@@ -94,7 +66,7 @@ class BlogService:
         tags = await self._validate_and_get_tags(blog_data.tags)
 
         # 3. Generate unique slug
-        slug = self._generate_unique_slug(blog_data.title)
+        slug = await self._generate_unique_slug(blog_data.title)
 
         # 4. Generate summary if not provided
         # summary = blog_data.summary or self._generate_summary(blog_data.content)
@@ -294,7 +266,7 @@ class BlogService:
         # 2. Delete blog (repository handles tag associations cleanup)
         return self.blog_repo.delete_blog(blog_id)
 
-    def list_blogs(
+    async def list_blogs(
         self,
         filters: BlogFilters,
         pagination: PaginationParams,
@@ -316,10 +288,12 @@ class BlogService:
             filters.viewer_id = user_id
 
         # Get paginated blogs from repository
-        paginated_blogs = self.blog_repo.list_blogs(filters, pagination)
+        paginated_blogs = await self.blog_repo.list_blogs(filters, pagination)
 
         # Convert to response schema
-        blog_responses = [BlogResponse.model_validate(blog) for blog in paginated_blogs.items]
+        blog_responses = [
+            BlogResponse.model_validate(blog) for blog in paginated_blogs.items
+        ]
 
         return PaginatedResponse(
             items=blog_responses,
@@ -514,7 +488,9 @@ class BlogService:
         fallback_slug = f"{base_slug}-{str(uuid.uuid4())[:8]}"
 
         # Final check (should be unique, but just in case)
-        if not await self.blog_repo.slug_exists(fallback_slug, exclude_id=exclude_blog_id):
+        if not await self.blog_repo.slug_exists(
+            fallback_slug, exclude_id=exclude_blog_id
+        ):
             return fallback_slug
 
         raise SlugConflictError(f"Unable to generate unique slug for title: {title}")
