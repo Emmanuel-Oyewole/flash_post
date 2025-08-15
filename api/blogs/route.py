@@ -25,14 +25,14 @@ async def create_blog(
         raise e
 
 
-@router.get("/public-blog", response_model=PaginatedResponse[BlogListResponse])
+@router.get("/public-blog")
 async def public_list_blogs(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     # Filter parameters
     author_id: Optional[str] = Query(None, description="Filter by author ID"),
     tag_names: Optional[List[str]] = Query(None, description="Filter by tag names"),
-    is_featured: Optional[bool] = Query(None, description="Filter featured blogs"),
+    # is_featured: Optional[bool] = Query(None, description="Filter featured blogs"),
     search_query: Optional[str] = Query(None, description="Search in title/content"),
     # Dependencies
     blog_service: BlogService = Depends(get_blog_service),
@@ -45,7 +45,7 @@ async def public_list_blogs(
     filters = BlogFilters(
         author_id=author_id,
         tag_names=tag_names or [],
-        is_featured=is_featured,
+        # is_featured=is_featured,
         search_query=search_query,
         is_published=True,  # Only published blogs in public list
         include_drafts=False,
@@ -62,10 +62,10 @@ async def auth_list_blogs(
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     # Filter parameters
     tag_names: Optional[List[str]] = Query(None, description="Filter by tag names"),
-    is_featured: Optional[bool] = Query(None, description="Filter featured blogs"),
+    # is_featured: Optional[bool] = Query(None, description="Filter featured blogs"),
     search_query: Optional[str] = Query(None, description="Search in title/content"),
-    is_published: Optional[bool] = Query(None, description="Add published blog"),
-    include_drafts: Optional[bool] = Query(None, description="Add draft blog"),
+    is_published: Optional[bool] = Query(True, description="Add published blog"),
+    include_drafts: Optional[bool] = Query(True, description="Add draft blog"),
     # Dependencies
     blog_service: BlogService = Depends(get_blog_service),
     current_user: User = Depends(get_current_user),
@@ -78,9 +78,9 @@ async def auth_list_blogs(
 
     filters = BlogFilters(
         tag_names=tag_names or [],
-        is_featured=is_featured,
+        # is_featured=is_featured,
         search_query=search_query,
-        is_published=is_published,  # Only published blogs in public list
+        is_published=is_published,
         include_drafts=include_drafts,
     )
 
@@ -92,8 +92,15 @@ async def auth_list_blogs(
 
 
 @router.get("/{blog_id}")
-async def get_blog(blog_id: str):
-    return f"Get a specific blog endpoint: {blog_id}"
+async def get_blog(
+    blog_id: str,
+    blog_service: BlogService = Depends(get_blog_service),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return await blog_service.get_blog_by_id(blog_id, current_user.id)
+    except Exception as e:
+        raise e
 
 
 @router.get("/slug/{slug}")

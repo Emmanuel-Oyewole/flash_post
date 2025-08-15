@@ -254,7 +254,7 @@ class BlogRepository:
             self.db.rollback()
             raise e
 
-    def list_blogs(
+    async def list_blogs(
         self, filters: BlogFilters, pagination: PaginationParams
     ) -> PaginatedResponse[Blog]:
         """
@@ -264,39 +264,53 @@ class BlogRepository:
             filters: Blog filters (author, tags, search, etc.)
             pagination: Pagination parameters
         """
-        query = self.db.query(Blog)
+        # 1. Build a base query without ordering or eager loading for the count.
+        count_query = select(Blog)
+        count_query = self._apply_filters(count_query, filters)
 
-        # Eager load relationships
-        query = query.options(joinedload(Blog.author), selectinload(Blog.tags))
+        # Use select(func.count()) on the filtered base query.
+        # This is more efficient than a subquery from the full-blown query.
+        total = await self.db.scalar(select(func.count()).select_from(count_query))
 
-        # Apply filters
+        # 2. Build the main query for the paginated results.
+        query = select(Blog)
+
+        # 3. Eager load relationships.
+        query = query.options(selectinload(Blog.author), selectinload(Blog.tags))
+
+        # 4. Apply filters to the main query.
         query = self._apply_filters(query, filters)
 
-        # Apply default sorting (most recent first)
+        # 5. Apply default sorting.
         query = query.order_by(desc(Blog.created_at))
 
-        # Get total count before pagination
-        total = query.count()
-
-        # Apply pagination
+        # 6. Apply pagination.
         offset = (pagination.page - 1) * pagination.per_page
         query = query.offset(offset).limit(pagination.per_page)
 
-        blogs = query.all()
+        # 7. Execute the main query.
+        result = await self.db.execute(query)
+        blogs = result.scalars().all()
 
+        # 8. Return the paginated response.
         return PaginatedResponse.create(
             items=blogs, total=total, page=pagination.page, per_page=pagination.per_page
         )
 
-    def increment_view_count(self, blog_id: str) -> None:
+    async def increment_view_count(self, blog_id: str) -> None:
         """
         Increment blog view count.
         This should be called asynchronously in production.
         """
-        self.db.query(Blog).filter(Blog.id == blog_id).update(
-            {Blog.view_count: Blog.view_count + 1}
+        stmt = (
+            update(Blog)
+            .where(Blog.id == blog_id)
+            .values(view_count=Blog.view_count + 1)
         )
-        self.db.commit()
+
+        await self.db.execute(stmt)
+
+        await self.db.commit()
 
     def get_featured_blogs(self, limit: int = 10) -> List[Blog]:
         """Get featured blogs."""
@@ -412,21 +426,20 @@ class BlogRepository:
 
     def _apply_filters(self, query, filters: BlogFilters):
         """Apply filtering logic to query."""
-
         # Published status filter
         if not filters.include_drafts:
-            query = query.filter(Blog.is_published == True)
+            query = query.filter(Blog.is_published.is_(True))
 
         # Author filter
         if filters.author_id:
             query = query.filter(Blog.author_id == filters.author_id)
 
-        # Featured filter
-        if filters.is_featured is not None:
-            query = query.filter(Blog.is_featured == filters.is_featured)
+        # # Featured filter
+        # if filters.is_featured is not None:
+        #     query = query.filter(Blog.is_featured == filters.is_featured)
 
         # Published filter
-        if filters.is_published is not None:
+        if not filters.is_published:
             query = query.filter(Blog.is_published == filters.is_published)
 
         # Tag filter
@@ -441,7 +454,7 @@ class BlogRepository:
                 or_(
                     func.lower(Blog.title).like(search_term),
                     func.lower(Blog.content).like(search_term),
-                    func.lower(Blog.summary).like(search_term),
+                    # func.lower(Blog.summary).like(search_term),
                 )
             )
 

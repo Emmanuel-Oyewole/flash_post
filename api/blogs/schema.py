@@ -52,7 +52,7 @@ class BlogResponse(BaseModel):
     updated_at: datetime
     published_at: Optional[datetime]
     author: PublicUser
-    tags: List[TagBase]
+    # tags: Optional[List[TagBase]]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
@@ -200,20 +200,19 @@ class AuthorResponse(BaseModel):
 class BlogListResponse(BaseModel):
     """Schema for blog list item (without full content)."""
 
-    id: str
+    id: uuid.UUID
     title: str
-    summary: str
+    content: str
+    # summary: str
     slug: str
-    author: AuthorResponse
-    tags: List[TagResponse]
+    author: PublicUser
+    # tags: List[TagResponse]
     is_published: bool
-    is_featured: bool
+    # is_featured: bool
     view_count: int
     like_count: int
     comment_count: int
     created_at: datetime
     published_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
-
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)

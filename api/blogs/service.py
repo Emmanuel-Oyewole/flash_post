@@ -19,6 +19,7 @@ from ..shared.tag_repo import TagRepository
 from ..shared.user_repo import UserRepository
 from ..shared.pagination import PaginationParams, PaginatedResponse
 from api.utils.slug_helper import generate_seo_optimized_slug
+from ..config.helpers import logger
 from ..exceptions.exceptions import (
     BlogNotFoundError,
     UnauthorizedError,
@@ -96,7 +97,7 @@ class BlogService:
 
         return BlogResponse.model_validate(created_blog)
 
-    def get_blog_by_id(
+    async def get_blog_by_id(
         self, blog_id: str, user_id: Optional[str] = None
     ) -> BlogResponse:
         """
@@ -112,18 +113,20 @@ class BlogService:
         Raises:
             BlogNotFoundError: If blog doesn't exist or user can't access it
         """
-        blog = self.blog_repo.get_by_id(blog_id, include_drafts=True)
+        blog = await self.blog_repo.get_by_id(blog_id, include_drafts=True)
 
         if not blog:
-            raise BlogNotFoundError(f"Blog {blog_id} not found")
+            raise BlogNotFoundError(blog_id)
 
         # Check access permissions for drafts
         if not blog.is_published and blog.author_id != user_id:
-            raise BlogNotFoundError(f"Blog {blog_id} not found")
+            raise BlogNotFoundError(blog_id)
 
         # Increment view count for published blogs (async in real implementation)
         if blog.is_published:
-            self.blog_repo.increment_view_count(blog_id)
+            await self.blog_repo.increment_view_count(blog_id)
+
+            await self.blog_repo.db.refresh(blog)
 
         return BlogResponse.model_validate(blog)
 
@@ -289,6 +292,7 @@ class BlogService:
 
         # Get paginated blogs from repository
         paginated_blogs = await self.blog_repo.list_blogs(filters, pagination)
+        logger.debug(f"perginated response:{paginated_blogs}")
 
         # Convert to response schema
         blog_responses = [
@@ -301,6 +305,8 @@ class BlogService:
             page=paginated_blogs.page,
             per_page=paginated_blogs.per_page,
             total_pages=paginated_blogs.total_pages,
+            has_next=paginated_blogs.has_next,
+            has_prev=paginated_blogs.has_prev,
         )
 
     def list_user_blogs(

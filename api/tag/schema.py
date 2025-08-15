@@ -3,8 +3,8 @@ from typing import Optional
 from pydantic import BaseModel
 
 class TagBase(BaseModel):
-    name: str
-    slug: str
+    name: str | None
+    slug: str | None
     description: Optional[str] = None
     color: Optional[str] = None  # Hex color
     usage_count: int = 0
