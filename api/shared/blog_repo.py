@@ -57,25 +57,20 @@ class BlogRepository:
         """
         Get blog by slug with optional relationship loading.
         """
-        query = select(Blog)
+        query = select(Blog).filter(Blog.slug == slug)
+
+        # Filter by published status if needed
+        if not include_drafts:
+            query = query.filter(Blog.is_published.is_(True))
 
         # Eager load relationships
         if load_relations:
             query = query.options(selectinload(Blog.author), selectinload(Blog.tags))
 
-        # Apply slug filter
-        query = query.filter(Blog.slug == slug)
-
-        # Filter by published status if needed
-        if not include_drafts:
-            query = query.filter(Blog.is_published == True)
-
         result = await self.db.execute(query)
 
         # Get the single result or None if not found
-        blog = result.scalar_one_or_none()
-
-        return blog
+        return result.scalar_one_or_none()
 
     async def slug_exists(self, slug: str, exclude_id: Optional[str] = None) -> bool:
         """
@@ -174,7 +169,8 @@ class BlogRepository:
         # Update timestamp
         blog.updated_at = datetime.now(timezone.utc)
 
-        self.db.flush()  # Flush but don't commit (let transaction handle it)
+        await self.db.commit()
+        await self.db.refresh(blog)
         return blog
 
     async def update_with_tags(
@@ -227,25 +223,24 @@ class BlogRepository:
             bool: True if successfully deleted
         """
         try:
-            with self.db.begin():
-                # Get blog and current tag IDs
-                blog = await self.get_by_id(
-                    blog_id, include_drafts=True, load_relations=False
-                )
-                if not blog:
-                    return False
+            # Get blog and current tag IDs
+            blog = await self.get_by_id(
+                blog_id, include_drafts=True, load_relations=False
+            )
+            if not blog:
+                return False
 
-                current_tag_ids = self.get_blog_tag_ids(blog_id)
+            current_tag_ids = await self._get_blog_tag_ids(blog_id)
 
-                # Delete blog (cascades will handle blog_tags)
-                self.db.delete(blog)
+            # Delete blog (cascades will handle blog_tags)
+            await self.db.delete(blog)
 
-                # Update tag usage counts
-                if current_tag_ids:
-                    await self.decrement_tag_usage_counts(current_tag_ids)
+            # Update tag usage counts
+            if current_tag_ids:
+                await self._decrement_tag_usage_counts(current_tag_ids)
 
-                self.db.commit()
-                return True
+            await self.db.commit()
+            return True
 
         except Exception as e:
             self.db.rollback()
@@ -356,13 +351,11 @@ class BlogRepository:
 
     # Private helper methods for tag operations
 
-    async def get_blog_tag_ids(self, blog_id: str) -> List[str]:
+    async def _get_blog_tag_ids(self, blog_id: str) -> List[str]:
         """Get tag IDs associated with a blog."""
-        result = await self.db.execute(
-            text("SELECT tag_id FROM blog_tags WHERE blog_id = :blog_id"),
-            {"blog_id": blog_id},
-        )
-        return result.scalar().all()
+        query = select(blog_tags.c.tag_id).where(blog_tags.c.blog_id == blog_id)
+        result = await self.db.execute(query)
+        return [str(row[0]) for row in result.fetchall()]
 
     def get_blog_tags(self, blog_id: str) -> List[Tag]:
         """Get tags associated with a blog."""

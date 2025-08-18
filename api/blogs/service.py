@@ -147,11 +147,13 @@ class BlogService:
             BlogNotFoundError: If blog doesn't exist or user can't access it
         """
         blog = await self.blog_repo.get_by_slug(slug, include_drafts=True)
+        print(blog)
 
         if not blog:
             raise BlogNotFoundError(f"Blog with slug '{slug}' not found")
 
         # Check access permissions for drafts
+        print(blog.author_id == user_id)
         if not blog.is_published and blog.author_id != user_id:
             raise BlogNotFoundError(f"Blog with slug '{slug}' not found")
 

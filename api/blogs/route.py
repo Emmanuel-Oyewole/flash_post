@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from ..user.model import User
 from ..dependencies.blog_deps import get_blog_service
 from ..dependencies.auth_dep import get_current_user
@@ -128,7 +128,7 @@ async def update_blog(
         raise e
 
 
-@router.delete("/{blog_id}")
+@router.delete("/{blog_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_blog(
     blog_id: str,
     current_user: User = Depends(get_current_user),
