@@ -4,8 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_, or_, func, desc, asc, text, select, insert, update
 from sqlalchemy.exc import IntegrityError
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, timezone
 
+from ..config.helpers import logger
 from api.blogs.model import Blog
 from ..tag.model import Tag
 from ..user.model import User
@@ -50,17 +51,17 @@ class BlogRepository:
 
         return blog
 
-    def get_by_slug(
+    async def get_by_slug(
         self, slug: str, include_drafts: bool = False, load_relations: bool = True
     ) -> Optional[Blog]:
         """
         Get blog by slug with optional relationship loading.
         """
-        query = self.db.query(Blog)
+        query = select(Blog)
 
         # Eager load relationships
         if load_relations:
-            query = query.options(joinedload(Blog.author), selectinload(Blog.tags))
+            query = query.options(selectinload(Blog.author), selectinload(Blog.tags))
 
         # Apply slug filter
         query = query.filter(Blog.slug == slug)
@@ -69,7 +70,12 @@ class BlogRepository:
         if not include_drafts:
             query = query.filter(Blog.is_published == True)
 
-        return query.first()
+        result = await self.db.execute(query)
+
+        # Get the single result or None if not found
+        blog = result.scalar_one_or_none()
+
+        return blog
 
     async def slug_exists(self, slug: str, exclude_id: Optional[str] = None) -> bool:
         """
@@ -149,12 +155,14 @@ class BlogRepository:
             await self.db.rollback()
             raise e
 
-    def update_blog(self, blog_id: str, updates: Dict[str, Any]) -> Optional[Blog]:
+    async def update_blog(
+        self, blog_id: str, updates: Dict[str, Any]
+    ) -> Optional[Blog]:
         """
         Update blog record (without tag changes).
         Used internally by update_with_tags.
         """
-        blog = self.get_by_id(blog_id, include_drafts=True, load_relations=False)
+        blog = await self.get_by_id(blog_id, include_drafts=True, load_relations=False)
         if not blog:
             return None
 
@@ -164,12 +172,12 @@ class BlogRepository:
                 setattr(blog, key, value)
 
         # Update timestamp
-        blog.updated_at = datetime.utcnow()
+        blog.updated_at = datetime.now(timezone.utc)
 
         self.db.flush()  # Flush but don't commit (let transaction handle it)
         return blog
 
-    def update_with_tags(
+    async def update_with_tags(
         self,
         blog_id: str,
         updates: Dict[str, Any],
@@ -183,43 +191,32 @@ class BlogRepository:
             updates: Dictionary of fields to update
             new_tag_ids: New tag IDs to replace existing ones (None = no change)
         """
-        try:
-            with self.db.begin():
-                # 1. Update blog record
-                blog = self.update_blog(blog_id, updates)
-                if not blog:
-                    return None
+        async with self.db.begin():
+            # 1. Update blog record
+            blog = await self.update_blog(blog_id, updates)
+            if not blog:
+                return None
 
-                # 2. Handle tag updates if provided
-                if new_tag_ids is not None:
-                    # Get current tag IDs for usage count updates
-                    current_tag_ids = self.get_blog_tag_ids(blog_id)
+            # 2. Handle tag updates if provided
+            if new_tag_ids is not None:
+                # Get current tag IDs for usage count updates
+                current_tag_ids = await self.get_blog_tag_ids(blog_id)
 
-                    # Replace tag associations
-                    self.replace_blog_tags(blog_id, new_tag_ids)
+                # Replace tag associations
+                await self.replace_blog_tags(blog_id, new_tag_ids)
 
-                    # Update tag usage counts
-                    if current_tag_ids:
-                        self.decrement_tag_usage_counts(current_tag_ids)
-                    if new_tag_ids:
-                        self.increment_tag_usage_counts(new_tag_ids)
+                # Update tag usage counts
+                if current_tag_ids:
+                    await self.decrement_tag_usage_counts(current_tag_ids)
+                if new_tag_ids:
+                    await self.increment_tag_usage_counts(new_tag_ids)
 
-                # 3. Commit transaction
-                self.db.commit()
+            # 3. Return updated blog with relationships
+            return await self.get_by_id(
+                blog_id, include_drafts=True, load_relations=True
+            )
 
-                # 4. Return updated blog with relationships
-                return self.get_by_id(blog_id, include_drafts=True, load_relations=True)
-
-        except IntegrityError as e:
-            self.db.rollback()
-            if "slug" in str(e):
-                raise ValueError(f"Slug already exists: {updates.get('slug')}")
-            raise e
-        except Exception as e:
-            self.db.rollback()
-            raise e
-
-    def delete_blog(self, blog_id: str) -> bool:
+    async def delete_blog(self, blog_id: str) -> bool:
         """
         Delete blog and clean up associations in a transaction.
 
@@ -232,7 +229,7 @@ class BlogRepository:
         try:
             with self.db.begin():
                 # Get blog and current tag IDs
-                blog = self.get_by_id(
+                blog = await self.get_by_id(
                     blog_id, include_drafts=True, load_relations=False
                 )
                 if not blog:
@@ -245,7 +242,7 @@ class BlogRepository:
 
                 # Update tag usage counts
                 if current_tag_ids:
-                    self.decrement_tag_usage_counts(current_tag_ids)
+                    await self.decrement_tag_usage_counts(current_tag_ids)
 
                 self.db.commit()
                 return True
@@ -359,13 +356,13 @@ class BlogRepository:
 
     # Private helper methods for tag operations
 
-    def get_blog_tag_ids(self, blog_id: str) -> List[str]:
+    async def get_blog_tag_ids(self, blog_id: str) -> List[str]:
         """Get tag IDs associated with a blog."""
-        result = self.db.execute(
+        result = await self.db.execute(
             text("SELECT tag_id FROM blog_tags WHERE blog_id = :blog_id"),
             {"blog_id": blog_id},
         )
-        return [row[0] for row in result]
+        return result.scalar().all()
 
     def get_blog_tags(self, blog_id: str) -> List[Tag]:
         """Get tags associated with a blog."""
@@ -387,14 +384,14 @@ class BlogRepository:
         await self.db.execute(insert(blog_tags), associations)
         # Don't commit - let the calling transaction handle it
 
-    def replace_blog_tags(self, blog_id: str, new_tag_ids: List[str]) -> None:
+    async def replace_blog_tags(self, blog_id: str, new_tag_ids: List[str]) -> None:
         """Replace all tag associations for a blog."""
         # Delete existing associations
-        self.db.execute(blog_tags.delete().where(blog_tags.c.blog_id == blog_id))
+        await self.db.execute(blog_tags.delete().where(blog_tags.c.blog_id == blog_id))
 
         # Add new associations
         if new_tag_ids:
-            self.associate_tags(blog_id, new_tag_ids)
+            await self.associate_tags(blog_id, new_tag_ids)
 
     async def increment_tag_usage_counts(self, tag_ids: List[str]) -> None:
         """Increment usage count for multiple tags."""

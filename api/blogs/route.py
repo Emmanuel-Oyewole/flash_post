@@ -4,7 +4,7 @@ from ..user.model import User
 from ..dependencies.blog_deps import get_blog_service
 from ..dependencies.auth_dep import get_current_user
 from .service import BlogService
-from .schema import BlogCreate, BlogListResponse, BlogResponse, BlogFilters
+from .schema import BlogCreate, BlogListResponse, BlogResponse, BlogFilters, BlogUpdate
 from ..shared.pagination import PaginatedResponse, PaginationParams
 
 router = APIRouter(prefix="/blog", tags=["Blogs"])
@@ -103,26 +103,62 @@ async def get_blog(
         raise e
 
 
+##################################
 @router.get("/slug/{slug}")
-async def get_blog_by_slug(slug: str):
-    return f"Get blog by slug endpoint: {slug}"
+async def get_blog_by_slug(
+    slug: str,
+    blog_service: BlogService = Depends(get_blog_service),
+):
+    try:
+        return await blog_service.get_blog_by_slug(slug)
+    except Exception as e:
+        raise e
 
 
 @router.put("/{blog_id}")
-async def update_blog(blog_id: str):
-    return f"Update blog endpoint: {blog_id}"
+async def update_blog(
+    updates: BlogUpdate,
+    blog_id: str,
+    current_user: User = Depends(get_current_user),
+    blog_service: BlogService = Depends(get_blog_service),
+):
+    try:
+        return await blog_service.update_blog(blog_id, updates, current_user.id)
+    except Exception as e:
+        raise e
 
 
 @router.delete("/{blog_id}")
-async def delete_blog(blog_id: str):
-    return f"Delete blog endpoint: {blog_id}"
+async def delete_blog(
+    blog_id: str,
+    current_user: User = Depends(get_current_user),
+    blog_service: BlogService = Depends(get_blog_service),
+):
+    try:
+        return await blog_service.delete_blog(blog_id, current_user.id)
+    except Exception as e:
+        raise e
 
 
 @router.post("/{blog_id}/publish")
-async def publish_blog(blog_id: str):
-    return f"Publish blog endpoint: {blog_id}"
+async def publish_blog(
+    blog_id: str,
+    current_user: User = Depends(get_current_user),
+    blog_service: BlogService = Depends(get_blog_service),
+):
+    try:
+        return await blog_service.publish_blog(blog_id, current_user.id)
+    except Exception as e:
+        raise e
 
 
 @router.post("/{blog_id}/unpublish")
-async def unpublish_blog(blog_id: str):
-    return f"Unpublish blog endpoint: {blog_id}"
+async def unpublish_blog(
+    blog_id: str,
+    current_user: User = Depends(get_current_user),
+    blog_service: BlogService = Depends(get_blog_service),
+):
+    try:
+        return await blog_service.unpublish_blog(blog_id, current_user.id)
+    except Exception as e:
+        raise e

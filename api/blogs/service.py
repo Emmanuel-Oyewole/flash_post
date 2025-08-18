@@ -130,7 +130,7 @@ class BlogService:
 
         return BlogResponse.model_validate(blog)
 
-    def get_blog_by_slug(
+    async def get_blog_by_slug(
         self, slug: str, user_id: Optional[str] = None
     ) -> BlogResponse:
         """
@@ -146,7 +146,7 @@ class BlogService:
         Raises:
             BlogNotFoundError: If blog doesn't exist or user can't access it
         """
-        blog = self.blog_repo.get_by_slug(slug, include_drafts=True)
+        blog = await self.blog_repo.get_by_slug(slug, include_drafts=True)
 
         if not blog:
             raise BlogNotFoundError(f"Blog with slug '{slug}' not found")
@@ -157,11 +157,14 @@ class BlogService:
 
         # Increment view count for published blogs
         if blog.is_published:
-            self.blog_repo.increment_view_count(blog.id)
+
+            await self.blog_repo.increment_view_count(blog.id)
+
+            await self.blog_repo.db.refresh(blog)
 
         return BlogResponse.model_validate(blog)
 
-    def update_blog(
+    async def update_blog(
         self, blog_id: str, updates: BlogUpdate, user_id: str
     ) -> BlogResponse:
         """
@@ -181,7 +184,7 @@ class BlogService:
             ValidationError: If tags don't exist or other validation fails
         """
         # 1. Get existing blog with permission check
-        blog = self.blog_repo.get_by_id(blog_id, include_drafts=True)
+        blog = await self.blog_repo.get_by_id(blog_id, include_drafts=True)
         if not blog:
             raise BlogNotFoundError(f"Blog {blog_id} not found")
 
@@ -191,13 +194,13 @@ class BlogService:
         # 2. Validate and get new tags if provided
         new_tag_ids = None
         if updates.tags is not None:
-            new_tags = self._validate_and_get_tags(updates.tags)
+            new_tags = await self._validate_and_get_tags(updates.tags)
             new_tag_ids = [tag.id for tag in new_tags]
 
         # 3. Generate new slug if title changed
         new_slug = blog.slug
         if updates.title and updates.title.strip() != blog.title:
-            new_slug = self._generate_unique_slug(
+            new_slug = await self._generate_unique_slug(
                 updates.title, exclude_blog_id=blog_id
             )
 
@@ -237,13 +240,13 @@ class BlogService:
             update_dict["published_at"] = published_at
 
         # 6. Update blog with tags in transaction
-        updated_blog = self.blog_repo.update_with_tags(
+        updated_blog = await self.blog_repo.update_with_tags(
             blog_id, update_dict, new_tag_ids
         )
 
         return BlogResponse.model_validate(updated_blog)
 
-    def delete_blog(self, blog_id: str, user_id: str) -> bool:
+    async def delete_blog(self, blog_id: str, user_id: str) -> bool:
         """
         Delete blog post.
 
@@ -259,7 +262,7 @@ class BlogService:
             UnauthorizedError: If user is not the author
         """
         # 1. Get existing blog with permission check
-        blog = self.blog_repo.get_by_id(blog_id, include_drafts=True)
+        blog = await self.blog_repo.get_by_id(blog_id, include_drafts=True)
         if not blog:
             raise BlogNotFoundError(f"Blog {blog_id} not found")
 
@@ -267,7 +270,7 @@ class BlogService:
             raise UnauthorizedError("Only the author can delete this blog")
 
         # 2. Delete blog (repository handles tag associations cleanup)
-        return self.blog_repo.delete_blog(blog_id)
+        return await self.blog_repo.delete_blog(blog_id)
 
     async def list_blogs(
         self,
@@ -338,7 +341,7 @@ class BlogService:
 
         return self.list_blogs(filters, pagination, user_id)
 
-    def publish_blog(self, blog_id: str, user_id: str) -> BlogResponse:
+    async def publish_blog(self, blog_id: str, user_id: str) -> BlogResponse:
         """
         Publish a draft blog.
 
@@ -354,7 +357,7 @@ class BlogService:
             UnauthorizedError: If user is not the author
             ValidationError: If blog is already published
         """
-        blog = self.blog_repo.get_by_id(blog_id, include_drafts=True)
+        blog = await self.blog_repo.get_by_id(blog_id, include_drafts=True)
         if not blog:
             raise BlogNotFoundError(f"Blog {blog_id} not found")
 
@@ -367,10 +370,11 @@ class BlogService:
         # Update to published status
         update_dict = {"is_published": True, "published_at": datetime.now(timezone.utc)}
 
-        updated_blog = self.blog_repo.update_blog(blog_id, update_dict)
+        updated_blog = await self.blog_repo.update_blog(blog_id, update_dict)
+
         return BlogResponse.model_validate(updated_blog)
 
-    def unpublish_blog(self, blog_id: str, user_id: str) -> BlogResponse:
+    async def unpublish_blog(self, blog_id: str, user_id: str) -> BlogResponse:
         """
         Unpublish a blog (convert back to draft).
 
@@ -386,7 +390,7 @@ class BlogService:
             UnauthorizedError: If user is not the author
             ValidationError: If blog is already a draft
         """
-        blog = self.blog_repo.get_by_id(blog_id, include_drafts=True)
+        blog = await self.blog_repo.get_by_id(blog_id, include_drafts=True)
         if not blog:
             raise BlogNotFoundError(f"Blog {blog_id} not found")
 
@@ -399,7 +403,8 @@ class BlogService:
         # Update to draft status
         update_dict = {"is_published": False, "published_at": None}
 
-        updated_blog = self.blog_repo.update_blog(blog_id, update_dict)
+        updated_blog = await self.blog_repo.update_blog(blog_id, update_dict)
+
         return BlogResponse.model_validate(updated_blog)
 
     # Private helper methods
