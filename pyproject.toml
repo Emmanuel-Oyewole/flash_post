@@ -15,4 +15,5 @@ dependencies = [
     "pyjwt",
     "redis>=6.2.0",
     "fastapi-mail>=1.5.0",
+    "python-slugify>=8.0.4",
 ]

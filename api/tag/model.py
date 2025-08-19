@@ -43,7 +43,9 @@ class Tag(Base):
     description: Mapped[str] = mapped_column(Text, nullable=True)
     color: Mapped[str] = mapped_column(String(7), nullable=True)  # Hex color
     usage_count: Mapped[int] = mapped_column(Integer, default=0, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
 
     # Relationships
     blogs = relationship("Blog", secondary=blog_tags, back_populates="tags")

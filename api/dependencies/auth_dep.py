@@ -23,11 +23,11 @@ async def get_otp_repo(
     return OTPRepository(redis_client)
 
 
-async def get_user_repo(db: AsyncSession = Depends(get_db_session)) -> UserRepository:
-    """
-    Dependency to get the UserRepository instance.
-    """
-    return UserRepository(db)
+# async def get_user_repo(db: AsyncSession = Depends(get_db_session)) -> UserRepository:
+#     """
+#     Dependency to get the UserRepository instance.
+#     """
+#     return UserRepository(db)
 
 
 async def get_notification_service() -> NotificationService:
@@ -37,15 +37,14 @@ async def get_notification_service() -> NotificationService:
     return NotificationService()
 
 
-async def get_user_service(
-    user_repo: UserRepository = Depends(get_user_repo),
-) -> UserService:
+async def get_user_service(db: AsyncSession = Depends(get_db_session)) -> UserService:
     """Dependency to provide a UserService instance."""
+    user_repo: UserRepository = UserRepository(db)
     return UserService(user_repo)
 
 
 async def get_auth_service(
-    user_repo: UserRepository = Depends(get_user_repo),
+    db: AsyncSession = Depends(get_db_session),
     otp_repo: OTPRepository = Depends(get_otp_repo),
     notification_service: NotificationService = Depends(get_notification_service),
 ):
@@ -53,6 +52,8 @@ async def get_auth_service(
     Dependency to get the AuthService instance.
     """
     from ..authentication.service import AuthService
+
+    user_repo: UserRepository = UserRepository(db)
 
     return AuthService(user_repo, otp_repo, notification_service)
 
