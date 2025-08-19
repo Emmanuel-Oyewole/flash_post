@@ -17,6 +17,6 @@ from ..shared.user_repo import UserRepository
 async def get_blog_service(db: AsyncSession = Depends(get_db_session)) -> BlogService:
     blog_repo = BlogRepository(db)
     tag_repo = TagRepository(db)
-    user_repo = TagRepository(db)
+    user_repo = UserRepository(db)
 
     return BlogService(blog_repo, tag_repo, user_repo)

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from pydantic import Tag
 from uuid import UUID
+from fastapi import status
 from sqlalchemy.exc import IntegrityError
 from ..shared.blog_repo import BlogRepository
 from ..shared.tag_repo import TagRepository
@@ -79,7 +80,7 @@ class BlogService:
             "content": blog_data.content.strip(),
             "slug": slug,
             # 'summary': summary,
-            "author_id": author_id,
+            "author_id": author.id,
             "is_published": blog_data.is_published,
             # 'is_featured': False,  # Only admins can feature blogs
             "published_at": (
@@ -188,10 +189,10 @@ class BlogService:
         # 1. Get existing blog with permission check
         blog = await self.blog_repo.get_by_id(blog_id, include_drafts=True)
         if not blog:
-            raise BlogNotFoundError(f"Blog {blog_id} not found")
+            raise BlogNotFoundError(status_code=status.HTTP_404_NOT_FOUND,detail=f"Blog {blog_id} not found")
 
         if blog.author_id != user_id:
-            raise UnauthorizedError("Only the author can update this blog")
+            raise UnauthorizedError(status_code=status.HTTP_401_UNAUTHORIZED,detail="Only the author can update this blog")
 
         # 2. Validate and get new tags if provided
         new_tag_ids = None
@@ -423,7 +424,10 @@ class BlogService:
             raise UnauthorizedError("Invalid author")
 
         if not author.is_active:
-            raise UnauthorizedError("Author account is inactive")
+            raise UnauthorizedError(status_code=status.HTTP_401_UNAUTHORIZED,detail="Author account is inactive")
+
+        if not author.email_verified:
+            raise UnauthorizedError(status_code=status.HTTP_401_UNAUTHORIZED,detail="Only verified account can create blog")
 
         return author
 

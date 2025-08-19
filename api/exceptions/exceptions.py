@@ -16,13 +16,6 @@ class FlashBlogException(HTTPException):
 class BlogNotFoundError(FlashBlogException):
     """Raised when a requested blog is not found."""
 
-    def __init__(self, resource_id: int):
-        detail = f"Blog with ID {resource_id} not found"
-        super().__init__(
-            status_code=404,
-            detail=detail,
-            extra_data={"resource_id": resource_id},
-        )
 
 
 class UnauthorizedError(FlashBlogException):

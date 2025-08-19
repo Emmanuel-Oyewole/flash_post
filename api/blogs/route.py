@@ -25,7 +25,7 @@ async def create_blog(
         raise e
 
 
-@router.get("/public-blog")
+@router.get("/public-blog", response_model=PaginatedResponse[BlogListResponse])
 async def public_list_blogs(
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -91,7 +91,7 @@ async def auth_list_blogs(
     )
 
 
-@router.get("/{blog_id}")
+@router.get("/{blog_id}", response_model=BlogResponse)
 async def get_blog(
     blog_id: str,
     blog_service: BlogService = Depends(get_blog_service),
@@ -103,8 +103,7 @@ async def get_blog(
         raise e
 
 
-##################################
-@router.get("/slug/{slug}")
+@router.get("/slug/{slug}", response_model=BlogResponse)
 async def get_blog_by_slug(
     slug: str,
     blog_service: BlogService = Depends(get_blog_service),
@@ -115,7 +114,7 @@ async def get_blog_by_slug(
         raise e
 
 
-@router.put("/{blog_id}")
+@router.put("/{blog_id}", response_model=BlogResponse)
 async def update_blog(
     updates: BlogUpdate,
     blog_id: str,
@@ -140,7 +139,7 @@ async def delete_blog(
         raise e
 
 
-@router.post("/{blog_id}/publish")
+@router.post("/{blog_id}/publish", response_model=BlogResponse)
 async def publish_blog(
     blog_id: str,
     current_user: User = Depends(get_current_user),
@@ -152,7 +151,7 @@ async def publish_blog(
         raise e
 
 
-@router.post("/{blog_id}/unpublish")
+@router.post("/{blog_id}/unpublish", response_model=BlogResponse)
 async def unpublish_blog(
     blog_id: str,
     current_user: User = Depends(get_current_user),

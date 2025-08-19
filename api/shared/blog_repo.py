@@ -12,7 +12,7 @@ from ..tag.model import Tag
 from ..user.model import User
 from ..blogs.schema import BlogFilters
 from ..shared.pagination import PaginationParams, PaginatedResponse
-from ..tag.model import blog_tags  # Association table
+from ..tag.model import blog_tags
 
 
 class BlogRepository:
@@ -187,30 +187,54 @@ class BlogRepository:
             updates: Dictionary of fields to update
             new_tag_ids: New tag IDs to replace existing ones (None = no change)
         """
-        async with self.db.begin():
-            # 1. Update blog record
-            blog = await self.update_blog(blog_id, updates)
+        try:
+            # Get the existing blog
+            blog = await self.get_by_id(
+                blog_id, include_drafts=True, load_relations=False
+            )
             if not blog:
                 return None
 
-            # 2. Handle tag updates if provided
+            # Handle tag updates if provided
+            current_tag_ids = []
             if new_tag_ids is not None:
                 # Get current tag IDs for usage count updates
-                current_tag_ids = await self.get_blog_tag_ids(blog_id)
+                current_tag_ids = await self._get_blog_tag_ids(blog_id)
 
+            # Apply updates to the blog object
+            for key, value in updates.items():
+                if hasattr(blog, key):
+                    setattr(blog, key, value)
+
+            # Update timestamp
+            blog.updated_at = datetime.now(timezone.utc)
+
+            # Handle tag associations
+            if new_tag_ids is not None:
                 # Replace tag associations
-                await self.replace_blog_tags(blog_id, new_tag_ids)
+                await self._replace_blog_tags(blog_id, new_tag_ids)
 
                 # Update tag usage counts
                 if current_tag_ids:
-                    await self.decrement_tag_usage_counts(current_tag_ids)
+                    await self._decrement_tag_usage_counts(current_tag_ids)
                 if new_tag_ids:
-                    await self.increment_tag_usage_counts(new_tag_ids)
+                    await self._increment_tag_usage_counts(new_tag_ids)
 
-            # 3. Return updated blog with relationships
+            # Commit all changes
+            await self.db.commit()
+
+            # Return updated blog with relationships
             return await self.get_by_id(
                 blog_id, include_drafts=True, load_relations=True
             )
+        except IntegrityError as e:
+            await self.db.rollback()
+            if "slug" in str(e.orig):
+                raise ValueError(f"Slug already exists: {updates.get('slug')}")
+            raise e
+        except Exception as e:
+            await self.db.rollback()
+            raise e
 
     async def delete_blog(self, blog_id: str) -> bool:
         """
