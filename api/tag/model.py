@@ -20,7 +20,7 @@ blog_tags = Table(
     Base.metadata,
     Column("blog_id", UUID(as_uuid=True), ForeignKey("blogs.id"), primary_key=True),
     Column("tag_id", UUID(as_uuid=True), ForeignKey("tags.id"), primary_key=True),
-    Column("created_at", DateTime, default=lambda: datetime.now(timezone.utc)),
+    Column("created_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
 )
 
 
@@ -44,6 +44,9 @@ class Tag(Base):
     color: Mapped[str] = mapped_column(String(7), nullable=True)  # Hex color
     usage_count: Mapped[int] = mapped_column(Integer, default=0, index=True)
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 

@@ -7,6 +7,7 @@ from ..shared.blog_repo import BlogRepository
 from ..shared.tag_repo import TagRepository
 from ..blogs.schema import BlogCreate
 from ..utils.slug_helper import generate_seo_optimized_slug
+from ..exceptions.exceptions import UnauthorizedError, TagNotFoundError
 
 from typing import List, Optional
 from uuid import uuid4
@@ -75,7 +76,7 @@ class BlogService:
 
         # 5. Prepare blog data with processed fields
         blog_dict = {
-            "id": str(uuid4()),
+            # "id": str(uuid4()),
             "title": blog_data.title.strip(),
             "content": blog_data.content.strip(),
             "slug": slug,
@@ -121,7 +122,10 @@ class BlogService:
 
         # Check access permissions for drafts
         if not blog.is_published and blog.author_id != user_id:
-            raise BlogNotFoundError(blog_id)
+            raise BlogNotFoundError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"blog with blog id: {blog_id} does not exist",
+            )
 
         # Increment view count for published blogs (async in real implementation)
         if blog.is_published:
@@ -189,10 +193,16 @@ class BlogService:
         # 1. Get existing blog with permission check
         blog = await self.blog_repo.get_by_id(blog_id, include_drafts=True)
         if not blog:
-            raise BlogNotFoundError(status_code=status.HTTP_404_NOT_FOUND,detail=f"Blog {blog_id} not found")
+            raise BlogNotFoundError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Blog {blog_id} not found",
+            )
 
         if blog.author_id != user_id:
-            raise UnauthorizedError(status_code=status.HTTP_401_UNAUTHORIZED,detail="Only the author can update this blog")
+            raise UnauthorizedError(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Only the author can update this blog",
+            )
 
         # 2. Validate and get new tags if provided
         new_tag_ids = None
@@ -424,10 +434,13 @@ class BlogService:
             raise UnauthorizedError("Invalid author")
 
         if not author.is_active:
-            raise UnauthorizedError(status_code=status.HTTP_401_UNAUTHORIZED,detail="Author account is inactive")
+            raise UnauthorizedError(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Author account is inactive",
+            )
 
-        if not author.email_verified:
-            raise UnauthorizedError(status_code=status.HTTP_401_UNAUTHORIZED,detail="Only verified account can create blog")
+        # if not author.email_verified:
+        #     raise UnauthorizedError(status_code=status.HTTP_401_UNAUTHORIZED,detail="Only verified account can create blog")
 
         return author
 
@@ -462,9 +475,10 @@ class BlogService:
         # Check for missing tags
         missing_tags = set(unique_names) - existing_names
         if missing_tags:
-            raise ValidationError(
-                f"The following tags do not exist: {', '.join(missing_tags)}. "
-                "Please contact an administrator to create new tags."
+            raise TagNotFoundError(
+                status.HTTP_404_NOT_FOUND,
+                detail=f"The following tags do not exist: {', '.join(missing_tags)}. "
+                "Please contact an administrator to create new tags.",
             )
 
         return existing_tags

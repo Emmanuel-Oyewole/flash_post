@@ -17,6 +17,7 @@ class UserRepository:
         new_user = User(
             email=user_data.email,
             hashed_password=user_data.password,
+            role=user_data.role,
         )
         self.db.add(new_user)
         await self.db.commit()

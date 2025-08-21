@@ -17,7 +17,6 @@ class BlogNotFoundError(FlashBlogException):
     """Raised when a requested blog is not found."""
 
 
-
 class UnauthorizedError(FlashBlogException):
     """Raised when user lacks permission for the requested action."""
 
@@ -44,5 +43,16 @@ class TagNotFoundError(FlashBlogException):
 
 class UserNotFoundError(FlashBlogException):
     """Raised when a requested user is not found."""
+
+    pass
+
+
+class TagExistError(FlashBlogException):
+    """Raised when tag already exist in DB."""
+
+    pass
+
+class TagConstraintError(FlashBlogException):
+    """Raised when blogs are attached to a specific tag."""
 
     pass
