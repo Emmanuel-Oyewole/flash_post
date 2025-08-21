@@ -4,7 +4,7 @@ from ..shared.comment_repo import CommentRepository
 from ..shared.blog_repo import BlogRepository
 from ..shared.user_repo import UserRepository
 from ..exceptions.exceptions import BlogNotFoundError, CommentError, UnauthorizedError
-from ..user.model import User
+from ..models import User
 from ..shared.pagination import PaginatedResponse, PaginationParams
 
 

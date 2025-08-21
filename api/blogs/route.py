@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
-from ..user.model import User
+from ..models import User
 from ..dependencies.blog_deps import get_blog_service
 from ..dependencies.auth_dep import get_current_user
 from .service import BlogService
