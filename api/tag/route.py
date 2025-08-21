@@ -1,12 +1,11 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
-from ..user.model import User
+from ..models import User
 from .schema import TagResponse, TagCreate
 from ..shared.pagination import PaginatedResponse, PaginationParams
 from ..dependencies.auth_dep import get_current_user
 from ..dependencies.tag_deps import get_tag_service
 from .service import TagService
-from ..blogs.schema import BlogFilters
 # from ..dependencies.blog_deps import get_blog_service
 # from ..blogs.service import BlogService
 
@@ -99,25 +98,3 @@ async def delete_tag(
         await tag_service.delete_tag(tag_id, current_user)
     except Exception as e:
         raise e
-
-
-# @router.get("/tags/{tag_id}/blogs")
-# async def get_blogs_by_tag(
-#     tag_id: str,
-#     page: int = Query(1, ge=1),
-#     per_page: int = Query(20, ge=1, le=100),
-#     blog_service: BlogService = Depends(get_blog_service),
-#     current_user: User = Depends(get_current_user),
-# ):
-#     """
-#     Paginated list of blogs with specific tag
-#     """
-#     filters = BlogFilters(tag_ids=[str(tag_id)], is_published=True)
-#     pagination = PaginationParams(page=page, per_page=per_page)
-
-#     try:
-#         return await blog_service.list_blogs(
-#             filters=filters, pagination=pagination, user_id=current_user.id
-#         )
-#     except Exception as e:
-#         raise e

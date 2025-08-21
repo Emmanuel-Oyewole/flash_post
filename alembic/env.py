@@ -26,11 +26,7 @@ fileConfig(config.config_file_name)
 # add your model's MetaData object here
 # from api.config.database import Base
 from api.config.database import Base
-from api.user import User
-from api.blogs import Blog
-from api.tag import Tag
-from api.comment import Comment
-from api.like import Like
+from api.models import User, Comment, Like, Tag, blog_tags, Blog
 
 
 target_metadata = Base.metadata

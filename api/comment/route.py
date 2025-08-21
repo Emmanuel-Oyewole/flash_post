@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from .schema import CommentCreate
 from .service import CommentService
-from ..user.model import User
+from ..models import User
 from ..dependencies.auth_dep import get_current_user
 from ..dependencies.comment_deps import get_comment_service
 from ..exceptions.exceptions import UnExpectedError

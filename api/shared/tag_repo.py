@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_, func, desc, asc, select
 
-from ..tag.model import Tag
+from ..models import Tag
 from ..shared.pagination import PaginationParams, PaginatedResponse
 
 

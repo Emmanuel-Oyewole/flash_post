@@ -4,8 +4,10 @@ from typing import List, Optional
 from datetime import datetime
 import uuid
 from ..user.schema import PublicUser
+
 # from ..tag.schema import TagBase
 from ..tag.schema import TagResponse
+from ..shared.schema import PublicCommentResponse
 
 
 class BlogCreate(BaseModel):
@@ -44,6 +46,7 @@ class BlogResponse(BaseModel):
     title: str
     content: str
     slug: str
+    comments: Optional[List[PublicCommentResponse]] = []
     is_published: bool
     view_count: int
     like_count: int
@@ -191,6 +194,7 @@ class BlogListResponse(BaseModel):
     id: uuid.UUID
     title: str
     content: str
+    comments: Optional[List[PublicCommentResponse]] = []
     # summary: str
     slug: str
     author: PublicUser

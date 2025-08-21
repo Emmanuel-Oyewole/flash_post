@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from ..comment.model import Comment
+from ..models import Comment
 from ..comment.schema import CommentCreate
 
 
