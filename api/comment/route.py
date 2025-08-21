@@ -1,15 +1,31 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, status
+from .schema import CommentCreate
+from .service import CommentService
+from ..user.model import User
+from ..dependencies.auth_dep import get_current_user
+from ..dependencies.comment_deps import get_comment_service
+from ..exceptions.exceptions import UnExpectedError
 
 
 router = APIRouter(prefix="/blog", tags=["Comments"])
 
 
 @router.post("/{blog_id}/comment")
-async def create_comment(blog_id: str):
+async def create_comment(
+    blog_id: str,
+    data: CommentCreate,
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
     """
     Creates a comment on the specified blog post.
     """
-    return f"Create comment on blog endpoint: {blog_id}"
+    try:
+        return await comment_service.create_comment(
+            blog_id=blog_id, author_id=current_user.id, data=data
+        )
+    except Exception as e:
+        raise e
 
 
 @router.get("/{blog_id}/comments")
@@ -51,6 +67,7 @@ async def reply_to_comment(blog_id: str, comment_id: str):
     """
     return f"Reply to comment {comment_id} on blog {blog_id} endpoint"
 
+
 @router.get("/{blog_id}/comment/{comment_id}/replies")
 async def get_replies(blog_id: str, comment_id: str):
     """
@@ -58,12 +75,14 @@ async def get_replies(blog_id: str, comment_id: str):
     """
     return f"Get replies for comment {comment_id} on blog {blog_id} endpoint"
 
+
 @router.post("/{blog_id}/comment/{comment_id}/like")
 async def like_comment(blog_id: str, comment_id: str):
     """
     Likes a specific comment on the specified blog post.
     """
     return f"Like comment {comment_id} on blog {blog_id} endpoint"
+
 
 @router.delete("/{blog_id}/comment/{comment_id}/unlike")
 async def unlike_comment(blog_id: str, comment_id: str):
