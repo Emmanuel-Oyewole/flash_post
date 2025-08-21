@@ -48,6 +48,7 @@ class BlogRepository:
 
         # Get the single result or None if not found
         blog = result.scalar_one_or_none()
+        print(blog)
 
         return blog
 
@@ -126,7 +127,7 @@ class BlogRepository:
                 await self.associate_tags(blog.id, tag_ids)
 
                 # 3. Update tag usage counts
-                await self.increment_tag_usage_counts(tag_ids)
+                await self._increment_tag_usage_counts(tag_ids)
 
             # 4. Commit transaction
             await self.db.commit()
@@ -306,7 +307,7 @@ class BlogRepository:
 
         # 7. Execute the main query.
         result = await self.db.execute(query)
-        blogs = result.scalars().all()
+        blogs = result.scalars().unique().all()
 
         # 8. Return the paginated response.
         return PaginatedResponse.create(
@@ -401,7 +402,7 @@ class BlogRepository:
         await self.db.execute(insert(blog_tags), associations)
         # Don't commit - let the calling transaction handle it
 
-    async def replace_blog_tags(self, blog_id: str, new_tag_ids: List[str]) -> None:
+    async def _replace_blog_tags(self, blog_id: str, new_tag_ids: List[str]) -> None:
         """Replace all tag associations for a blog."""
         # Delete existing associations
         await self.db.execute(blog_tags.delete().where(blog_tags.c.blog_id == blog_id))
@@ -410,7 +411,7 @@ class BlogRepository:
         if new_tag_ids:
             await self.associate_tags(blog_id, new_tag_ids)
 
-    async def increment_tag_usage_counts(self, tag_ids: List[str]) -> None:
+    async def _increment_tag_usage_counts(self, tag_ids: List[str]) -> None:
         """Increment usage count for multiple tags."""
         if not tag_ids:
             return
@@ -424,7 +425,7 @@ class BlogRepository:
         await self.db.execute(stmt)
         # Don't commit - let the calling transaction handle it
 
-    async def decrement_tag_usage_counts(self, tag_ids: List[str]) -> None:
+    async def _decrement_tag_usage_counts(self, tag_ids: List[str]) -> None:
         """Decrement usage count for multiple tags."""
         if not tag_ids:
             return
@@ -458,8 +459,12 @@ class BlogRepository:
 
         # Tag filter
         if filters.tag_names:
+            # 1. Convert user-provided tag names to uppercase
+            uppercase_tag_names = [name.upper() for name in filters.tag_names]
             # Join with tags and filter by tag names
-            query = query.join(Blog.tags).filter(Tag.name.in_(filters.tag_names))
+            query = query.join(Blog.tags).filter(
+                func.upper(Tag.name).in_(uppercase_tag_names)
+            )
 
         # Search filter (title and content)
         if filters.search_query:

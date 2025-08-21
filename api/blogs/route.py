@@ -1,4 +1,5 @@
 from typing import List, Optional
+from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from ..user.model import User
 from ..dependencies.blog_deps import get_blog_service
@@ -161,3 +162,4 @@ async def unpublish_blog(
         return await blog_service.unpublish_blog(blog_id, current_user.id)
     except Exception as e:
         raise e
+

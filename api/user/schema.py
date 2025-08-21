@@ -1,8 +1,13 @@
+import enum
 from uuid import UUID
 from typing import Annotated
 from pydantic import BaseModel, EmailStr, Field, AfterValidator
 from ..shared.schema import PublicUser
 from ..config.settings import settings
+class UserRole(str, enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
+
 
 # Password policy
 SPECIAL_CHARS: set[str] = {
@@ -88,6 +93,7 @@ class GetUser(PublicUser):
 class CreateUser(BaseModel):
     email: EmailStr = Field(...)
     password: str= Field(...)
+    role: UserRole = Field(default=UserRole.USER)
 
 
 class PublicUserResp(BaseModel):

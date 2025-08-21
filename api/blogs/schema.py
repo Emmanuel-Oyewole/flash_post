@@ -4,7 +4,8 @@ from typing import List, Optional
 from datetime import datetime
 import uuid
 from ..user.schema import PublicUser
-from ..tag.schema import TagBase
+# from ..tag.schema import TagBase
+from ..tag.schema import TagResponse
 
 
 class BlogCreate(BaseModel):
@@ -52,7 +53,7 @@ class BlogResponse(BaseModel):
     updated_at: datetime
     published_at: Optional[datetime]
     author: PublicUser
-    # tags: Optional[List[TagBase]]
+    tags: Optional[List[TagResponse]] = []
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
@@ -172,19 +173,6 @@ class BlogFilters(BaseModel):
     )
 
 
-class TagResponse(BaseModel):
-    """Schema for tag data in responses."""
-
-    id: str
-    name: str
-    slug: str
-    color: Optional[str]
-    usage_count: int
-
-    class Config:
-        from_attributes = True
-
-
 class AuthorResponse(BaseModel):
     """Schema for author data in blog responses."""
 
@@ -206,7 +194,7 @@ class BlogListResponse(BaseModel):
     # summary: str
     slug: str
     author: PublicUser
-    # tags: List[TagResponse]
+    tags: Optional[List[TagResponse]] = []
     is_published: bool
     # is_featured: bool
     view_count: int

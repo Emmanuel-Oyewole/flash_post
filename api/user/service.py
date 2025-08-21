@@ -27,6 +27,7 @@ class UserService:
         user_data_for_repo = CreateUser(
             email=user_data.email,
             password=hashed_password,
+            role=user_data.role
         )
         return await self.user_repo.create_user(user_data_for_repo)
 

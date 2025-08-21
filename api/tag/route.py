@@ -1,52 +1,123 @@
-from fastapi import APIRouter
+from typing import Optional
+from fastapi import APIRouter, Depends, Query, status
+from ..user.model import User
+from .schema import TagResponse, TagCreate
+from ..shared.pagination import PaginatedResponse, PaginationParams
+from ..dependencies.auth_dep import get_current_user
+from ..dependencies.tag_deps import get_tag_service
+from .service import TagService
+from ..blogs.schema import BlogFilters
+# from ..dependencies.blog_deps import get_blog_service
+# from ..blogs.service import BlogService
 
 
 router = APIRouter(prefix="/tag", tags=["Tags"])
 
 
-@router.get("/tags")
-async def get_tags():
+@router.get(
+    "/tags",
+    status_code=status.HTTP_200_OK,
+    response_model=PaginatedResponse[TagResponse],
+)
+async def get_tags(
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    search_query: Optional[str] = Query(None, alias="q", description="Search query"),
+    order: str = Query("desc", regex="^(asc|desc)$"),
+    sort_by: str = Query("usage_count", regex="^(name|usage_count|created_at)$"),
+    tag_service: TagService = Depends(get_tag_service),
+    current_user: User = Depends(get_current_user),
+):
     """
     Retrieve a list of tags.
     """
-    return {"tags": ["tag1", "tag2", "tag3"]}
+    pagination = PaginationParams(page=page, per_page=per_page)
+
+    return await tag_service.list_tags(search_query, sort_by, order, pagination)
 
 
-@router.post("/tags")
-async def create_tag(tag: str):
+@router.post("/tags", status_code=status.HTTP_201_CREATED, response_model=TagResponse)
+async def create_tag(
+    tag: TagCreate,
+    tag_service: TagService = Depends(get_tag_service),
+    current_user: User = Depends(get_current_user),
+):
     """
     Create a new tag.
     """
-    return {"message": f"Tag '{tag}' created successfully."}
+    try:
+        return await tag_service.create_tag(tag, current_user)
+    except Exception as e:
+        raise e
 
 
-@router.get("/tags/{tag_id}")
-async def get_tag(tag_id: int):
+@router.get(
+    "/tags/{tag_id}", status_code=status.HTTP_200_OK, response_model=TagResponse
+)
+async def get_tag(
+    tag_id: str,
+    tag_service: TagService = Depends(get_tag_service),
+    current_user: User = Depends(get_current_user),
+):
     """
     Retrieve a specific tag by its ID.
     """
-    return {"tag_id": tag_id, "tag_name": f"tag{tag_id}"}
+    try:
+        return await tag_service.get_tag_by_id(tag_id)
+    except Exception as e:
+        raise e
 
 
-@router.put("/tags/{tag_id}")
-async def update_tag(tag_id: int, tag: str):
+@router.put(
+    "/tags/{tag_id}", status_code=status.HTTP_200_OK, response_model=TagResponse
+)
+async def update_tag(
+    tag_id: str,
+    tag_data: TagCreate,
+    tag_service: TagService = Depends(get_tag_service),
+    current_user: User = Depends(get_current_user),
+):
     """
     Update an existing tag by its ID.
     """
-    return {"message": f"Tag '{tag}' updated successfully for tag ID {tag_id}."}
+    try:
+        return await tag_service.update_tag(tag_id, tag_data, current_user)
+    except Exception as e:
+        raise e
 
 
-@router.delete("/tags/{tag_id}")
-async def delete_tag(tag_id: int):
+@router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_tag(
+    tag_id: str,
+    tag_service: TagService = Depends(get_tag_service),
+    current_user: User = Depends(get_current_user),
+):
     """
     Delete a tag by its ID.
     """
-    return {"message": f"Tag with ID {tag_id} deleted successfully."}
+    try:
+        await tag_service.delete_tag(tag_id, current_user)
+    except Exception as e:
+        raise e
 
 
-@router.get("/tags/{tag_id}/blogs")
-async def get_blogs_by_tag(tag_id: int):
-    """
-    Paginated list of blogs with specific tag
-    """
-    return {"tag_id": tag_id, "blogs": ["blog1", "blog2", "blog3"]}
+# @router.get("/tags/{tag_id}/blogs")
+# async def get_blogs_by_tag(
+#     tag_id: str,
+#     page: int = Query(1, ge=1),
+#     per_page: int = Query(20, ge=1, le=100),
+#     blog_service: BlogService = Depends(get_blog_service),
+#     current_user: User = Depends(get_current_user),
+# ):
+#     """
+#     Paginated list of blogs with specific tag
+#     """
+#     filters = BlogFilters(tag_ids=[str(tag_id)], is_published=True)
+#     pagination = PaginationParams(page=page, per_page=per_page)
+
+#     try:
+#         return await blog_service.list_blogs(
+#             filters=filters, pagination=pagination, user_id=current_user.id
+#         )
+#     except Exception as e:
+#         raise e
