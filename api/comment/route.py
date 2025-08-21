@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from .schema import CommentCreate
 from .service import CommentService
 from ..models import User
 from ..dependencies.auth_dep import get_current_user
 from ..dependencies.comment_deps import get_comment_service
 from ..exceptions.exceptions import UnExpectedError
+from ..shared.pagination import PaginationParams
 
 
 router = APIRouter(prefix="/blog", tags=["Comments"])
@@ -29,11 +30,21 @@ async def create_comment(
 
 
 @router.get("/{blog_id}/comments")
-async def get_comments(blog_id: str):
+async def get_comments(
+    blog_id: str,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
     """
     Returns a paginated list of comments for the specified blog post.
     """
-    return f"Get comments for blog endpoint: {blog_id}"
+    pagination = PaginationParams(page=page, per_page=per_page)
+    try:
+        return await comment_service.list_comments(blog_id, pagination)
+    except Exception as e:
+        raise e
 
 
 @router.get("/comments/{comment_id}")

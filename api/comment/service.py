@@ -5,6 +5,7 @@ from ..shared.blog_repo import BlogRepository
 from ..shared.user_repo import UserRepository
 from ..exceptions.exceptions import BlogNotFoundError, CommentError, UnauthorizedError
 from ..models import User
+from ..shared.pagination import PaginatedResponse, PaginationParams
 
 
 class CommentService:
@@ -14,7 +15,7 @@ class CommentService:
         comment_repo: CommentRepository,
         blog_repo: BlogRepository,
         user_repo: UserRepository,
-    ):
+    ) -> None:
         self.comment_repo = comment_repo
         self.blog_repo = blog_repo
         self.user_repo = user_repo
@@ -54,3 +55,27 @@ class CommentService:
         comment_with_relation = await self.comment_repo.get_by_id(comment_id=comment.id)
 
         return CommentResponse.model_validate(comment_with_relation)
+
+    async def get_comment(self, comment_id: str) -> CommentResponse:
+        comment = await self.comment_repo.get_by_id(comment_id)
+        if not comment:
+            raise Exception("Comment not found")
+        return CommentResponse.model_validate(comment)
+
+    async def list_comments(
+        self, blog_id: str, pagination: PaginationParams
+    ) -> PaginatedResponse[CommentResponse]:
+
+        paginated_comments = await self.comment_repo.list_by_blog(blog_id, pagination)
+        # You may want to count total comments for pagination metadata
+        return PaginatedResponse(
+            items=[
+                CommentResponse.model_validate(comment)
+                for comment in paginated_comments.items
+            ],
+            total=paginated_comments.total,
+            page=paginated_comments.page,
+            per_page=paginated_comments.per_page,
+            has_next=paginated_comments.has_next,
+            has_prev=paginated_comments.has_next,
+        )
