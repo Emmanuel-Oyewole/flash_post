@@ -67,15 +67,16 @@ class CommentService:
     ) -> PaginatedResponse[CommentResponse]:
 
         paginated_comments = await self.comment_repo.list_by_blog(blog_id, pagination)
-        # You may want to count total comments for pagination metadata
-        return PaginatedResponse(
-            items=[
+        comments_response = [
                 CommentResponse.model_validate(comment)
                 for comment in paginated_comments.items
-            ],
+            ]
+        return PaginatedResponse(
+            items=comments_response,
             total=paginated_comments.total,
             page=paginated_comments.page,
+            total_pages=paginated_comments.total_pages,
             per_page=paginated_comments.per_page,
             has_next=paginated_comments.has_next,
-            has_prev=paginated_comments.has_next,
+            has_prev=paginated_comments.has_prev,
         )
