@@ -69,3 +69,9 @@ class CommentError(FlashBlogException):
     """Raised when an unexpected error occurs."""
 
     pass
+
+
+class UnExpectedUpdateError(FlashBlogException):
+    """Raised when an unexpected error occurs."""
+
+    pass

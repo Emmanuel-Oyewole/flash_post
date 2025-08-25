@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Query, status
-from .schema import CommentCreate
+from .schema import CommentCreate, CommentUpdate
 from .service import CommentService
 from ..models import User
 from ..dependencies.auth_dep import get_current_user
@@ -47,20 +47,37 @@ async def get_comments(
         raise e
 
 
-@router.get("/comments/{comment_id}")
-async def get_comment(comment_id: str):
+@router.get("/{blog_id}/comments/{comment_id}")
+async def get_comment(
+    blog_id: str,
+    comment_id: str,
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
     """
     Returns a single comment by its ID.
     """
-    return f"Get comment by ID endpoint: {comment_id}"
+    try:
+        return await comment_service.get_comment(comment_id)
+    except Exception as e:
+        raise e
 
 
 @router.put("/{blog_id}/comment/{comment_id}")
-async def update_comment(blog_id: str, comment_id: str):
+async def update_comment(
+    blog_id: str,
+    comment_id: str,
+    data: CommentUpdate,
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
     """
     Updates a specific comment on the specified blog post.
     """
-    return f"Update comment {comment_id} on blog {blog_id} endpoint"
+    try:
+        return await comment_service.update_comment(comment_id=comment_id,blog_id=blog_id,data=data, user_id=current_user.id )
+    except Exception as e:
+        raise e
 
 
 @router.delete("/{blog_id}/comment/{comment_id}")
@@ -72,11 +89,23 @@ async def delete_comment(blog_id: str, comment_id: str):
 
 
 @router.post("/{blog_id}/comment/{comment_id}/reply")
-async def reply_to_comment(blog_id: str, comment_id: str):
+async def reply_to_comment(
+    blog_id: str,
+    comment_id: str,
+    data: CommentCreate,
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
     """
     Creates a reply to a specific comment on the specified blog post.
     """
-    return f"Reply to comment {comment_id} on blog {blog_id} endpoint"
+    try:
+        parent_comment = await comment_service.get_comment(comment_id)
+        return await comment_service.create_comment(
+            parent_comment.blog_id, current_user.id, data, comment_id
+        )
+    except Exception as e:
+        raise e
 
 
 @router.get("/{blog_id}/comment/{comment_id}/replies")

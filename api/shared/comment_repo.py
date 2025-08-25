@@ -62,3 +62,50 @@ class CommentRepository:
             page=pagination.page,
             per_page=pagination.per_page,
         )
+
+    async def update(
+        self, blog_id: str, comment_id: str, user_id: str, content: str
+    ) -> Comment:
+        stmt = select(Comment).where(
+            Comment.id == comment_id,
+            Comment.author_id == user_id,
+            Comment.blog_id == blog_id,
+        )
+
+        result = await self.db.execute(stmt)
+        comment = result.scalars().first()
+
+        if not comment:
+            return None
+
+        comment.content = content
+        comment.is_edited = True
+        await self.db.commit()
+        await self.db.refresh(comment)
+
+        return comment
+    
+    async def delete(self, blog_id: str, comment_id: str, user_id: str) -> bool:
+        try:
+            # 🔍 Find the comment with all conditions
+            stmt = select(Comment).where(
+                Comment.id == comment_id,
+                Comment.author_id == user_id,
+                Comment.blog_id == blog_id,
+            )
+            
+            result = await self.db.execute(stmt)
+            comment = result.scalar_one_or_none()
+            
+            if not comment:
+                return False
+            
+            # 🗑️ DELETE: This triggers the cascade!
+            await self.db.delete(comment)
+            await self.db.commit()
+            
+            return True
+            
+        except Exception as e:
+            await self.db.rollback()
+            raise e
