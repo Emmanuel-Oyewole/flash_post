@@ -1,6 +1,11 @@
+from asyncio.log import logger
+from typing import Optional
+from click import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import selectinload
+
+from ..models.like_model import Like
 from ..models import Comment
 from ..comment.schema import CommentCreate
 from ..shared.pagination import PaginationParams, PaginatedResponse
@@ -84,28 +89,145 @@ class CommentRepository:
         await self.db.refresh(comment)
 
         return comment
-    
+
     async def delete(self, blog_id: str, comment_id: str, user_id: str) -> bool:
         try:
-            # 🔍 Find the comment with all conditions
             stmt = select(Comment).where(
                 Comment.id == comment_id,
                 Comment.author_id == user_id,
                 Comment.blog_id == blog_id,
             )
-            
+
             result = await self.db.execute(stmt)
             comment = result.scalar_one_or_none()
-            
+
             if not comment:
                 return False
-            
-            # 🗑️ DELETE: This triggers the cascade!
+
             await self.db.delete(comment)
             await self.db.commit()
-            
+
             return True
-            
+
+        except ValueError as e:
+            logger.error(f"Invalid UUID format: {e}")
+            return False
+
         except Exception as e:
             await self.db.rollback()
             raise e
+
+    async def create_reply(
+        self, blog_id: str, parent_id: str, author_id: str, content: str
+    ) -> Comment:
+        """Create a reply to an existing comment."""
+        try:
+            # Validate parent comment exists and belongs to blog
+            parent_stmt = select(Comment).where(
+                Comment.id == UUID(parent_id), Comment.blog_id == UUID(blog_id)
+            )
+            parent_result = await self.db.execute(parent_stmt)
+            parent_comment = parent_result.scalar_one_or_none()
+
+            if not parent_comment:
+                raise ValueError(
+                    "Parent comment not found or doesn't belong to this blog"
+                )
+
+            # Create reply
+            reply_data = {
+                "content": content,
+                "blog_id": UUID(blog_id),
+                "author_id": UUID(author_id),
+                "parent_id": UUID(parent_id),
+                "is_edited": False,
+                "like_count": 0,
+            }
+
+            reply = Comment(**reply_data)
+            self.db.add(reply)
+            await self.db.commit()
+            await self.db.refresh(reply)
+
+            # Load relationships
+            reply_with_relations = await self.get_by_id_with_relations(str(reply.id))
+            return reply_with_relations
+
+        except Exception as e:
+            await self.db.rollback()
+            raise e
+
+    async def get_by_id_with_relations(self, comment_id: str) -> Optional[Comment]:
+        """Get comment with author relationship loaded."""
+        stmt = (
+            select(Comment)
+            .options(selectinload(Comment.author))
+            .where(Comment.id == UUID(comment_id))
+        )
+
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_replies(
+        self,
+        comment_id: str,
+        pagination: PaginationParams,
+        user_id: Optional[str] = None,
+    ) -> PaginatedResponse[Comment]:
+        """Get paginated replies for a comment."""
+        # Count total replies
+        count_stmt = select(func.count(Comment.id)).where(
+            Comment.parent_id == UUID(comment_id)
+        )
+        total_result = await self.db.execute(count_stmt)
+        total = total_result.scalar()
+
+        # Get paginated replies with author
+        stmt = (
+            select(Comment)
+            .options(selectinload(Comment.author))
+            .where(Comment.parent_id == UUID(comment_id))
+            .order_by(Comment.created_at)
+            .offset((pagination.page - 1) * pagination.per_page)
+            .limit(pagination.per_page)
+        )
+
+        result = await self.db.execute(stmt)
+        replies = result.scalars().all()
+
+        # Add like status if user provided
+        if user_id:
+            for reply in replies:
+                reply.is_liked_by_user = await self.is_liked_by_user(
+                    str(reply.id), user_id, "comment"
+                )
+
+        return PaginatedResponse.create(
+            items=replies,
+            total=total,
+            page=pagination.page,
+            per_page=pagination.per_page,
+        )
+
+    async def get_like(
+        self, target_id: str, user_id: str, target_type: str
+    ) -> Optional[Like]:
+        """Get like by user for comment or blog."""
+        if target_type == "comment":
+            stmt = select(Like).where(
+                Like.comment_id == UUID(target_id), Like.user_id == UUID(user_id)
+            )
+        else:
+            stmt = select(Like).where(
+                Like.blog_id == UUID(target_id), Like.user_id == UUID(user_id)
+            )
+
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def is_liked_by_user(
+        self, target_id: str, user_id: str, target_type: str
+    ) -> bool:
+        """Check if user has liked a comment or blog."""
+        like = await self.get_like(target_id, user_id, target_type)
+        return like is not None

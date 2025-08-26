@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import status
 from .schema import CommentCreate, CommentResponse, CommentUpdate
 from ..shared.comment_repo import CommentRepository
@@ -122,28 +123,113 @@ class CommentService:
         )
         if not updated_comment:
             raise UnExpectedUpdateError(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="error occurred while updating blog"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="error occurred while updating blog",
             )
-        
+
         # Eagerly load the updated comment for the response
         fully_loaded_comment = await self.comment_repo.get_by_id(updated_comment.id)
         return CommentResponse.model_validate(fully_loaded_comment)
-    
+
     async def delete_comment(self, blog_id: str, comment_id: str, user_id: str) -> bool:
-    # 🔍 Step 3a: Check if comment exists
         comment = await self.comment_repo.get_by_id(comment_id)
         if not comment:
-         raise CommentNotFoundError(f"Comment {comment_id} not found")
-    
-    # 🔍 Step 3b: Verify comment belongs to this blog
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Comment {comment_id} not found",
+            )
+
         if str(comment.blog_id) != str(blog_id):
-         raise CommentNotFoundError("Comment does not belong to this blog")
-    
-    # 🔍 Step 3c: Check authorization (owner or admin)
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Comment does not belong to this blog",
+            )
+
         if str(comment.author_id) != str(user_id):
             user = await self.user_repo.get_by_id(user_id)
         if user.role != "admin":
-            raise UnauthorizedError("You can only delete your own comments")
-    
-    # ✅ All checks passed, proceed to delete
-        return await self.comment_repo.delete(blog_id, comment_id, user_id)
+            raise UnauthorizedError(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="You can only delete your own comments",
+            )
+
+        # Delete the comment
+        success = await self.comment_repo.delete(blog_id, comment_id, user_id)
+
+        if not success:
+            raise CommentError(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while deleting comment",
+            )
+
+        return True
+
+    async def create_reply(
+        self, blog_id: str, comment_id: str, author_id: str, data: CommentCreate
+    ) -> CommentResponse:
+        """Create a reply to a comment."""
+        # Validate blog exists
+        blog = await self.blog_repo.get_by_id(blog_id)
+        if not blog:
+            raise BlogNotFoundError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Blog {blog_id} not found",
+            )
+
+        # Validate parent comment exists
+        parent_comment = await self.comment_repo.get_by_id_with_relations(comment_id)
+        if not parent_comment:
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Parent comment {comment_id} not found",
+            )
+
+        # Validate parent belongs to blog
+        if str(parent_comment.blog_id) != str(blog_id):
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Parent comment doesn't belong to this blog",
+            )
+
+        # Create reply
+        reply = await self.comment_repo.create_reply(
+            blog_id=blog_id,
+            parent_id=comment_id,
+            author_id=author_id,
+            content=data.content,
+        )
+
+        return CommentResponse.model_validate(reply)
+
+    async def get_replies(
+        self,
+        blog_id: str,
+        comment_id: str,
+        pagination: PaginationParams,
+        user_id: Optional[str] = None,
+    ) -> PaginatedResponse[CommentResponse]:
+        """Get replies for a comment."""
+        # Validate comment exists and belongs to blog
+        comment = await self.comment_repo.get_by_id_with_relations(comment_id)
+        if not comment or str(comment.blog_id) != str(blog_id):
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Comment not found or doesn't belong to this blog",
+            )
+
+        # Get replies
+        paginated_replies = await self.comment_repo.get_replies(
+            comment_id, pagination, user_id
+        )
+
+        # Convert to response models
+        reply_responses = [
+            CommentResponse.model_validate(reply) for reply in paginated_replies.items
+        ]
+
+        return PaginatedResponse.create(
+            items=reply_responses,
+            total=paginated_replies.total,
+            page=pagination.page,
+            per_page=pagination.per_page,
+        )

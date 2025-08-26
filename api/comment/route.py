@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from .schema import CommentCreate, CommentUpdate
 from .service import CommentService
@@ -81,11 +82,20 @@ async def update_comment(
 
 
 @router.delete("/{blog_id}/comment/{comment_id}")
-async def delete_comment(blog_id: str, comment_id: str):
+async def delete_comment(
+    blog_id: str,
+    comment_id: str,
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
     """
     Deletes a specific comment from the specified blog post.
+    Only the comment author or admin can delete comments.
     """
-    return f"Delete comment {comment_id} on blog {blog_id} endpoint"
+    try:
+        await comment_service.delete_comment(blog_id, comment_id, current_user.id)
+    except Exception as e:
+        raise e
 
 
 @router.post("/{blog_id}/comment/{comment_id}/reply")
@@ -100,33 +110,92 @@ async def reply_to_comment(
     Creates a reply to a specific comment on the specified blog post.
     """
     try:
-        parent_comment = await comment_service.get_comment(comment_id)
-        return await comment_service.create_comment(
-            parent_comment.blog_id, current_user.id, data, comment_id
+        # parent_comment = await comment_service.get_comment(comment_id)
+        # return await comment_service.create_comment(
+        #     parent_comment.blog_id, current_user.id, data, comment_id
+        # )
+
+        return await comment_service.create_reply(
+            blog_id=str(blog_id),
+            comment_id=str(comment_id),
+            author_id=str(current_user.id),
+            data=data,
         )
     except Exception as e:
         raise e
 
 
 @router.get("/{blog_id}/comment/{comment_id}/replies")
-async def get_replies(blog_id: str, comment_id: str):
+async def get_replies(
+    blog_id: str,
+    comment_id: str,
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
     """
     Returns a paginated list of replies to a specific comment on the specified blog post.
     """
-    return f"Get replies for comment {comment_id} on blog {blog_id} endpoint"
+    try:
+        pagination = PaginationParams(page=page, per_page=per_page)
+        return await comment_service.get_replies(
+            blog_id=str(blog_id),
+            comment_id=str(comment_id),
+            pagination=pagination,
+            user_id=str(current_user.id) if current_user else None
+        )
+    except Exception as e:
+        raise e
+    
+@router.put("{blog_id}/reply/{reply_id}")
+async def update_reply(
+    blog_id: str,
+    reply_id: str,
+    data: CommentUpdate,
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
+    """Update a reply (author or admin only)."""
+    try:
+        return await comment_service.update_reply(
+            blog_id=str(blog_id),
+            reply_id=str(reply_id),
+            user_id=str(current_user.id),
+            data=data
+        )
+    except Exception as e:
+        raise e
+    
+@router.delete("{blog_id}/reply/{reply_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_reply(
+    blog_id: str,
+    reply_id: str,
+    current_user: User = Depends(get_current_user),
+    comment_service: CommentService = Depends(get_comment_service),
+):
+    """Delete a reply (author or admin only)."""
+    try:
+        await comment_service.delete_reply(
+            blog_id=str(blog_id),
+            reply_id=str(reply_id),
+            user_id=str(current_user.id)
+        )
+    except Exception as e:
+        raise e
 
 
-@router.post("/{blog_id}/comment/{comment_id}/like")
-async def like_comment(blog_id: str, comment_id: str):
-    """
-    Likes a specific comment on the specified blog post.
-    """
-    return f"Like comment {comment_id} on blog {blog_id} endpoint"
+# @router.post("/{blog_id}/comment/{comment_id}/like")
+# async def like_comment(blog_id: str, comment_id: str):
+#     """
+#     Likes a specific comment on the specified blog post.
+#     """
+#     return f"Like comment {comment_id} on blog {blog_id} endpoint"
 
 
-@router.delete("/{blog_id}/comment/{comment_id}/unlike")
-async def unlike_comment(blog_id: str, comment_id: str):
-    """
-    Unlikes a specific comment on the specified blog post.
-    """
-    return f"Unlike comment {comment_id} on blog {blog_id} endpoint"
+# @router.delete("/{blog_id}/comment/{comment_id}/unlike")
+# async def unlike_comment(blog_id: str, comment_id: str):
+#     """
+#     Unlikes a specific comment on the specified blog post.
+#     """
+#     return f"Unlike comment {comment_id} on blog {blog_id} endpoint"
