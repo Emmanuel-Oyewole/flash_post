@@ -9,11 +9,11 @@ from api.blogs import router as blog_router
 from api.comment import router as comment_router
 from api.like import router as like_router
 from api.tag import router as tag_router
-from api.user.model import User  # noqa
-from api.blogs.model import Blog  # noqa
-from api.comment.model import Comment  # noqa
-from api.like.model import Like  # noqa
-from api.tag.model import Tag  # noqa
+from api.models import User  # noqa
+from api.models import Blog  # noqa
+from api.models import Comment  # noqa
+from api.models import Like  # noqa
+from api.models import Tag, blog_tags  # noqa
 
 
 @asynccontextmanager

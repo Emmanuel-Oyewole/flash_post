@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException
 from ..user.schema import CreateUser, UpdateUser
-from ..user.model import User
+from ..models import User
 
 
 class UserRepository:

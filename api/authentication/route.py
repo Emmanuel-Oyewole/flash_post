@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from ..shared.schema import PublicUser
 
-from api.user.model import User
+from ..models import User
 from .schema import (
     AccessTokenResp,
     RefreshTokenReq,

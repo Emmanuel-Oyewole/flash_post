@@ -3,7 +3,7 @@ import uuid
 from fastapi import BackgroundTasks, HTTPException, status
 
 from api.shared.otp_repo import OTPRepository
-from api.user.model import User
+from ..models import User
 from ..config.settings import settings
 from ..config.helpers import logger
 from ..user.service import UserRepository

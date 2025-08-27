@@ -13,9 +13,9 @@ from typing import List, Optional
 from uuid import uuid4
 
 from ..blogs.schema import BlogCreate, BlogUpdate, BlogResponse, BlogFilters
-from api.blogs.model import Blog
-from ..tag.model import Tag
-from ..user.model import User
+from ..models import Blog
+from ..models import Tag
+from ..models import User
 from ..shared.blog_repo import BlogRepository
 from ..shared.tag_repo import TagRepository
 from ..shared.user_repo import UserRepository

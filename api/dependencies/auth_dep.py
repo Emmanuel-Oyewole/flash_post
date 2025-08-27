@@ -8,7 +8,7 @@ from ..shared.otp_repo import OTPRepository
 from ..notification.service import NotificationService
 from ..config.redis_db import get_redis_client
 from ..user.service import UserService
-from ..user.model import User
+from ..models import User
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/access-token")

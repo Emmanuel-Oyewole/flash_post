@@ -7,12 +7,13 @@ from uuid import uuid4
 from datetime import datetime, timezone
 
 from ..config.helpers import logger
-from api.blogs.model import Blog
-from ..tag.model import Tag
-from ..user.model import User
+from ..models import Blog
+from ..models import Tag
+from ..models import User
 from ..blogs.schema import BlogFilters
 from ..shared.pagination import PaginationParams, PaginatedResponse
-from ..tag.model import blog_tags
+from ..models import blog_tags
+from ..models import Comment
 
 
 class BlogRepository:
@@ -41,7 +42,11 @@ class BlogRepository:
         # Eager load relationships to avoid N+1 queries
         if load_relations:
             # Use selectinload for efficient eager loading with async sessions
-            query = query.options(selectinload(Blog.author), selectinload(Blog.tags))
+            query = query.options(
+                selectinload(Blog.author),
+                selectinload(Blog.tags),
+                selectinload(Blog.comments).selectinload(Comment.replies),
+            )
 
         # Execute the query asynchronously and get the result
         result = await self.db.execute(query)
@@ -293,7 +298,12 @@ class BlogRepository:
         query = select(Blog)
 
         # 3. Eager load relationships.
-        query = query.options(selectinload(Blog.author), selectinload(Blog.tags))
+        query = query.options(
+            selectinload(Blog.author),
+            selectinload(Blog.tags),
+            selectinload(Blog.comments).selectinload(Comment.replies),
+            selectinload(Blog.comments).selectinload(Comment.author),
+        )
 
         # 4. Apply filters to the main query.
         query = self._apply_filters(query, filters)

@@ -20,7 +20,11 @@ blog_tags = Table(
     Base.metadata,
     Column("blog_id", UUID(as_uuid=True), ForeignKey("blogs.id"), primary_key=True),
     Column("tag_id", UUID(as_uuid=True), ForeignKey("tags.id"), primary_key=True),
-    Column("created_at", DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)),
+    Column(
+        "created_at",
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    ),
 )
 
 

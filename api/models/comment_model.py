@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from api.config.database import Base
 
+
 class Comment(Base):
     """
     Comment model for the application.
@@ -17,13 +18,22 @@ class Comment(Base):
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
     blog_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("blogs.id"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("blogs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     author_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     parent_id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("comments.id"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
     is_edited: Mapped[bool] = mapped_column(Boolean, default=False)
     like_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -40,7 +50,9 @@ class Comment(Base):
     blog = relationship("Blog", back_populates="comments")
     author = relationship("User", back_populates="comments")
     parent = relationship("Comment", remote_side=[id], back_populates="replies")
-    replies = relationship("Comment", back_populates="parent", cascade="all, delete-orphan")
+    replies = relationship(
+        "Comment", back_populates="parent", cascade="all, delete-orphan"
+    )
     likes = relationship("Like", back_populates="comment", cascade="all, delete-orphan")
 
     def __repr__(self):

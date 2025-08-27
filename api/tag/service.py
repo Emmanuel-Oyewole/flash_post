@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 from fastapi import status
-from ..user.model import User
+from ..models import User
 from ..shared.tag_repo import TagRepository
 from ..shared.pagination import PaginatedResponse, PaginationParams
 from .schema import TagResponse, TagCreate, TagUpdate

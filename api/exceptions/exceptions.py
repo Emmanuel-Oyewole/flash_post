@@ -52,7 +52,26 @@ class TagExistError(FlashBlogException):
 
     pass
 
+
 class TagConstraintError(FlashBlogException):
     """Raised when blogs are attached to a specific tag."""
+
+    pass
+
+
+class UnExpectedError(FlashBlogException):
+    """Raised when an unexpected error occurs."""
+
+    pass
+
+
+class CommentError(FlashBlogException):
+    """Raised when an unexpected error occurs."""
+
+    pass
+
+
+class UnExpectedUpdateError(FlashBlogException):
+    """Raised when an unexpected error occurs."""
 
     pass
