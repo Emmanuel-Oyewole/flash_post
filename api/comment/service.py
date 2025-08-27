@@ -53,7 +53,6 @@ class CommentService:
             "content": data.content,
             "blog_id": blog_id,
             "author_id": author_id,
-            "parent_id": data.parent_id,
         }
         # 1. Create the new comment in the database.
         comment = await self.comment_repo.create(comment_data)
@@ -109,6 +108,7 @@ class CommentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"comment with Id: {comment_id} not found",
             )
+        print(f"user_id:{comment.author_id}, blog_id: {comment.blog_id}")
 
         if comment.author_id != user_id or comment.blog_id != blog.id:
             raise UnauthorizedError(
@@ -146,7 +146,12 @@ class CommentService:
             )
 
         if str(comment.author_id) != str(user_id):
-            user = await self.user_repo.get_by_id(user_id)
+            raise UnauthorizedError(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="You can only delete your own comments",
+            )
+
+        user = await self.user_repo.get_user_by_id(user_id)
         if user.role != "admin":
             raise UnauthorizedError(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -165,7 +170,7 @@ class CommentService:
         return True
 
     async def create_reply(
-        self, blog_id: str, comment_id: str, author_id: str, data: CommentCreate
+        self, blog_id: str, parent_comment_id: str, author_id: str, data: CommentCreate
     ) -> CommentResponse:
         """Create a reply to a comment."""
         # Validate blog exists
@@ -177,11 +182,13 @@ class CommentService:
             )
 
         # Validate parent comment exists
-        parent_comment = await self.comment_repo.get_by_id_with_relations(comment_id)
+        parent_comment = await self.comment_repo.get_by_id_with_relations(
+            parent_comment_id
+        )
         if not parent_comment:
             raise CommentError(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Parent comment {comment_id} not found",
+                detail=f"Parent comment {parent_comment_id} not found",
             )
 
         # Validate parent belongs to blog
@@ -194,7 +201,7 @@ class CommentService:
         # Create reply
         reply = await self.comment_repo.create_reply(
             blog_id=blog_id,
-            parent_id=comment_id,
+            parent_id=parent_comment_id,
             author_id=author_id,
             content=data.content,
         )
@@ -204,13 +211,13 @@ class CommentService:
     async def get_replies(
         self,
         blog_id: str,
-        comment_id: str,
+        parent_comment_id: str,
         pagination: PaginationParams,
-        user_id: Optional[str] = None,
+        user_id: User,
     ) -> PaginatedResponse[CommentResponse]:
         """Get replies for a comment."""
         # Validate comment exists and belongs to blog
-        comment = await self.comment_repo.get_by_id_with_relations(comment_id)
+        comment = await self.comment_repo.get_by_id_with_relations(parent_comment_id)
         if not comment or str(comment.blog_id) != str(blog_id):
             raise CommentError(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -219,7 +226,7 @@ class CommentService:
 
         # Get replies
         paginated_replies = await self.comment_repo.get_replies(
-            comment_id, pagination, user_id
+            parent_comment_id, pagination, user_id
         )
 
         # Convert to response models
@@ -233,3 +240,101 @@ class CommentService:
             page=pagination.page,
             per_page=pagination.per_page,
         )
+
+    async def update_reply(
+        self,
+        blog_id: str,
+        parent_comment_id: str,
+        reply_id: str,
+        user_id: str,
+        data: CommentUpdate,
+    ) -> Optional[CommentResponse]:
+        """Update a reply."""
+        blog = await self.blog_repo.get_by_id(blog_id)
+        if not blog:
+            raise BlogNotFoundError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"blog with id {blog_id} not found",
+            )
+        comment = await self.comment_repo.get_by_id_with_relations(reply_id)
+
+        if not comment:
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="reply not found or doesn't belong to this blog or comment",
+            )
+
+        if comment.author_id != user_id:
+            raise CommentError(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="ony creator of replies is allowed to edit it",
+            )
+
+        if str(comment.blog_id) != blog_id:
+            raise CommentError(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"blog with id: {blog_id} is not associated with comment",
+            )
+
+        if str(comment.parent_id) != parent_comment_id:
+            raise CommentError(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"comment with id: {parent_comment_id} is not associated with reply with id: {reply_id}",
+            )
+
+        # Update reply
+        updated_reply = await self.comment_repo.update_reply(
+            reply_id, parent_comment_id, user_id, data.content
+        )
+
+        if not updated_reply:
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reply not found or unauthorized",
+            )
+
+        return CommentResponse.model_validate(updated_reply)
+
+    async def delete_reply(
+        self, blog_id: str, parent_comment_id: str, reply_id: str, user_id: str
+    ) -> bool:
+        blog = await self.blog_repo.get_by_id(blog_id)
+        if not blog:
+            raise BlogNotFoundError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"blog with id {blog_id} not found",
+            )
+        comment = await self.comment_repo.get_by_id_with_relations(reply_id)
+
+        if not comment:
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="reply not found or doesn't belong to this blog or comment",
+            )
+
+        if comment.author_id != user_id:
+            raise CommentError(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="ony creator of replies is allowed to edit it",
+            )
+
+        if str(comment.blog_id) != blog_id:
+            raise CommentError(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"blog with id: {blog_id} is not associated with comment",
+            )
+
+        if str(comment.parent_id) != parent_comment_id:
+            raise CommentError(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"comment with id: {parent_comment_id} is not associated with reply with id: {reply_id}",
+            )
+        success = await self.comment_repo.delete_reply(reply_id=reply_id, author_id=user_id, parent_comment_id=parent_comment_id)
+
+        if not success:
+            raise CommentError(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error occurred while deleting comment",
+            )
+        
+        return True

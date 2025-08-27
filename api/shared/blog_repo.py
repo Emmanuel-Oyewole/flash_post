@@ -45,7 +45,7 @@ class BlogRepository:
             query = query.options(
                 selectinload(Blog.author),
                 selectinload(Blog.tags),
-                selectinload(Blog.comments),
+                selectinload(Blog.comments).selectinload(Comment.replies),
             )
 
         # Execute the query asynchronously and get the result
@@ -302,7 +302,7 @@ class BlogRepository:
             selectinload(Blog.author),
             selectinload(Blog.tags),
             selectinload(Blog.comments).selectinload(Comment.replies),
-            selectinload(Blog.comments).selectinload(Comment.author)
+            selectinload(Blog.comments).selectinload(Comment.author),
         )
 
         # 4. Apply filters to the main query.

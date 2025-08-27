@@ -1,26 +1,33 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status
-from .schema import CommentCreate, CommentUpdate
+from fastapi import APIRouter, Depends, Query, status, Path
+from .schema import CommentCreate, CommentUpdate, CommentResponse
 from .service import CommentService
 from ..models import User
 from ..dependencies.auth_dep import get_current_user
 from ..dependencies.comment_deps import get_comment_service
 from ..exceptions.exceptions import UnExpectedError
-from ..shared.pagination import PaginationParams
+from ..shared.pagination import PaginationParams, PaginatedResponse
 
 
 router = APIRouter(prefix="/blog", tags=["Comments"])
 
 
-@router.post("/{blog_id}/comment")
+@router.post(
+    "/{blog_id}/comment",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_comment(
-    blog_id: str,
     data: CommentCreate,
+    blog_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     current_user: User = Depends(get_current_user),
     comment_service: CommentService = Depends(get_comment_service),
 ):
     """
-    Creates a comment on the specified blog post.
+    Creates a comment on a specified blog post.
     """
     try:
         return await comment_service.create_comment(
@@ -30,9 +37,16 @@ async def create_comment(
         raise e
 
 
-@router.get("/{blog_id}/comments")
+@router.get(
+    "/{blog_id}/comments",
+    response_model=PaginatedResponse[CommentResponse],
+    status_code=status.HTTP_200_OK,
+)
 async def get_comments(
-    blog_id: str,
+    blog_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
@@ -48,10 +62,16 @@ async def get_comments(
         raise e
 
 
-@router.get("/{blog_id}/comments/{comment_id}")
+@router.get(
+    "/{blog_id}/comments/{comment_id}",
+    response_model=CommentResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def get_comment(
-    blog_id: str,
-    comment_id: str,
+    comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     current_user: User = Depends(get_current_user),
     comment_service: CommentService = Depends(get_comment_service),
 ):
@@ -64,11 +84,21 @@ async def get_comment(
         raise e
 
 
-@router.put("/{blog_id}/comment/{comment_id}")
+@router.put(
+    "/{blog_id}/comment/{comment_id}",
+    response_model=CommentResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def update_comment(
-    blog_id: str,
-    comment_id: str,
     data: CommentUpdate,
+    blog_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     current_user: User = Depends(get_current_user),
     comment_service: CommentService = Depends(get_comment_service),
 ):
@@ -76,15 +106,25 @@ async def update_comment(
     Updates a specific comment on the specified blog post.
     """
     try:
-        return await comment_service.update_comment(comment_id=comment_id,blog_id=blog_id,data=data, user_id=current_user.id )
+        return await comment_service.update_comment(
+            comment_id=comment_id, blog_id=blog_id, data=data, user_id=current_user.id
+        )
     except Exception as e:
         raise e
 
 
-@router.delete("/{blog_id}/comment/{comment_id}")
+@router.delete(
+    "/{blog_id}/comment/{comment_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_comment(
-    blog_id: str,
-    comment_id: str,
+    blog_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     current_user: User = Depends(get_current_user),
     comment_service: CommentService = Depends(get_comment_service),
 ):
@@ -98,11 +138,21 @@ async def delete_comment(
         raise e
 
 
-@router.post("/{blog_id}/comment/{comment_id}/reply")
+@router.post(
+    "/{blog_id}/comment/{parent_comment_id}/reply",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def reply_to_comment(
-    blog_id: str,
-    comment_id: str,
     data: CommentCreate,
+    blog_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    parent_comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     current_user: User = Depends(get_current_user),
     comment_service: CommentService = Depends(get_comment_service),
 ):
@@ -110,25 +160,30 @@ async def reply_to_comment(
     Creates a reply to a specific comment on the specified blog post.
     """
     try:
-        # parent_comment = await comment_service.get_comment(comment_id)
-        # return await comment_service.create_comment(
-        #     parent_comment.blog_id, current_user.id, data, comment_id
-        # )
-
         return await comment_service.create_reply(
-            blog_id=str(blog_id),
-            comment_id=str(comment_id),
-            author_id=str(current_user.id),
+            blog_id=blog_id,
+            parent_comment_id=parent_comment_id,
+            author_id=current_user.id,
             data=data,
         )
     except Exception as e:
         raise e
 
 
-@router.get("/{blog_id}/comment/{comment_id}/replies")
+@router.get(
+    "/{blog_id}/comment/{parent_comment_id}/replies",
+    response_model=PaginatedResponse[CommentResponse],
+    status_code=status.HTTP_200_OK,
+)
 async def get_replies(
-    blog_id: str,
-    comment_id: str,
+    blog_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    parent_comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(20, ge=1, le=100, description="Items per page"),
     current_user: User = Depends(get_current_user),
@@ -141,45 +196,76 @@ async def get_replies(
         pagination = PaginationParams(page=page, per_page=per_page)
         return await comment_service.get_replies(
             blog_id=str(blog_id),
-            comment_id=str(comment_id),
+            parent_comment_id=str(parent_comment_id),
             pagination=pagination,
-            user_id=str(current_user.id) if current_user else None
+            user_id=str(current_user.id) if current_user else None,
         )
     except Exception as e:
         raise e
-    
-@router.put("{blog_id}/reply/{reply_id}")
+
+
+@router.put(
+    "{blog_id}/comment/{parent_comment_id}/reply/{reply_id}",
+    response_model=CommentResponse,
+    status_code=status.HTTP_200_OK,
+)
 async def update_reply(
-    blog_id: str,
-    reply_id: str,
     data: CommentUpdate,
+    blog_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    parent_comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    reply_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     current_user: User = Depends(get_current_user),
     comment_service: CommentService = Depends(get_comment_service),
 ):
     """Update a reply (author or admin only)."""
     try:
         return await comment_service.update_reply(
-            blog_id=str(blog_id),
-            reply_id=str(reply_id),
-            user_id=str(current_user.id),
-            data=data
+            blog_id=blog_id,
+            parent_comment_id=parent_comment_id,
+            reply_id=reply_id,
+            user_id=current_user.id,
+            data=data,
         )
     except Exception as e:
         raise e
-    
-@router.delete("{blog_id}/reply/{reply_id}", status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete(
+    "{blog_id}/comment/{parent_comment_id}/reply/{reply_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
 async def delete_reply(
-    blog_id: str,
-    reply_id: str,
+    blog_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    parent_comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    reply_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
     current_user: User = Depends(get_current_user),
     comment_service: CommentService = Depends(get_comment_service),
 ):
     """Delete a reply (author or admin only)."""
     try:
         await comment_service.delete_reply(
-            blog_id=str(blog_id),
-            reply_id=str(reply_id),
-            user_id=str(current_user.id)
+            blog_id=blog_id,
+            reply_id=reply_id,
+            user_id=current_user.id,
+            parent_comment_id=parent_comment_id,
         )
     except Exception as e:
         raise e

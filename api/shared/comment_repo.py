@@ -1,4 +1,5 @@
 from asyncio.log import logger
+from datetime import datetime, timezone
 from typing import Optional
 from click import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -161,7 +162,7 @@ class CommentRepository:
         """Get comment with author relationship loaded."""
         stmt = (
             select(Comment)
-            .options(selectinload(Comment.author))
+            .options(selectinload(Comment.author), selectinload(Comment.replies))
             .where(Comment.id == UUID(comment_id))
         )
 
@@ -185,7 +186,7 @@ class CommentRepository:
         # Get paginated replies with author
         stmt = (
             select(Comment)
-            .options(selectinload(Comment.author))
+            .options(selectinload(Comment.author), selectinload(Comment.replies))
             .where(Comment.parent_id == UUID(comment_id))
             .order_by(Comment.created_at)
             .offset((pagination.page - 1) * pagination.per_page)
@@ -196,11 +197,11 @@ class CommentRepository:
         replies = result.scalars().all()
 
         # Add like status if user provided
-        if user_id:
-            for reply in replies:
-                reply.is_liked_by_user = await self.is_liked_by_user(
-                    str(reply.id), user_id, "comment"
-                )
+        # if user_id:
+        #     for reply in replies:
+        #         reply.is_liked_by_user = await self.is_liked_by_user(
+        #             str(reply.id), user_id, "comment"
+        #         )
 
         return PaginatedResponse.create(
             items=replies,
@@ -209,25 +210,76 @@ class CommentRepository:
             per_page=pagination.per_page,
         )
 
-    async def get_like(
-        self, target_id: str, user_id: str, target_type: str
-    ) -> Optional[Like]:
-        """Get like by user for comment or blog."""
-        if target_type == "comment":
-            stmt = select(Like).where(
-                Like.comment_id == UUID(target_id), Like.user_id == UUID(user_id)
+    async def update_reply(
+        self, reply_id: str, parent_comment_id: str, author_id: str, content: str
+    ) -> Optional[Comment]:
+        """Update a reply (author or admin only)."""
+        stmt = (
+            select(Comment)
+            .options(selectinload(Comment.author), selectinload(Comment.replies))
+            .where(
+                Comment.id == UUID(reply_id),
+                Comment.author_id == UUID(author_id),
+                Comment.parent_id == UUID(parent_comment_id),
             )
-        else:
-            stmt = select(Like).where(
-                Like.blog_id == UUID(target_id), Like.user_id == UUID(user_id)
-            )
+        )
 
         result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        reply = result.scalar_one_or_none()
 
-    async def is_liked_by_user(
-        self, target_id: str, user_id: str, target_type: str
+        if not reply:
+            return None
+
+        # Update content
+        reply.content = content
+        reply.is_edited = True
+        reply.updated_at = datetime.now(timezone.utc)
+
+        await self.db.commit()
+        return reply
+
+    async def delete_reply(
+        self, reply_id: str, author_id: str, parent_comment_id: str
     ) -> bool:
-        """Check if user has liked a comment or blog."""
-        like = await self.get_like(target_id, user_id, target_type)
-        return like is not None
+        """Delete a reply (author or admin only)."""
+        stmt = select(Comment).where(
+            Comment.id == UUID(reply_id),
+            Comment.author_id == UUID(author_id),
+            Comment.parent_id == UUID(parent_comment_id),
+        )
+
+        result = await self.db.execute(stmt)
+        # Use .scalar_one_or_none() to get the Comment object.
+        comment_to_delete = result.scalar_one_or_none()
+
+        if comment_to_delete:
+            # 2. If the comment exists, pass the object to the `delete()` method.
+            await self.db.delete(comment_to_delete)
+            # 3. Commit the changes to the database.
+            await self.db.commit()
+            return True
+
+        return False
+
+    # async def get_like(
+    #     self, target_id: str, user_id: str, target_type: str
+    # ) -> Optional[Like]:
+    #     """Get like by user for comment or blog."""
+    #     if target_type == "comment":
+    #         stmt = select(Like).where(
+    #             Like.comment_id == UUID(target_id), Like.user_id == UUID(user_id)
+    #         )
+    #     else:
+    #         stmt = select(Like).where(
+    #             Like.blog_id == UUID(target_id), Like.user_id == UUID(user_id)
+    #         )
+
+    #     result = await self.db.execute(stmt)
+    #     return result.scalar_one_or_none()
+
+    # async def is_liked_by_user(
+    #     self, target_id: str, user_id: str, target_type: str
+    # ) -> bool:
+    #     """Check if user has liked a comment or blog."""
+    #     like = await self.get_like(target_id, user_id, target_type)
+    #     return like is not None

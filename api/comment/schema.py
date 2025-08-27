@@ -7,7 +7,6 @@ from ..shared.schema import PublicUser
 
 class CommentCreate(BaseModel):
     content: str = Field(..., min_length=1, max_length=5000)
-    parent_id: Optional[UUID] = None
 
 
 class CommentUpdate(BaseModel):
