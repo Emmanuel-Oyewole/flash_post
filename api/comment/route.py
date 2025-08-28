@@ -1,10 +1,12 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Path
 from .schema import CommentCreate, CommentUpdate, CommentResponse
 from .service import CommentService
+from ..like.service import LikeService
 from ..models import User
 from ..dependencies.auth_dep import get_current_user
 from ..dependencies.comment_deps import get_comment_service
+from ..dependencies.like_deps import get_like_service
 from ..exceptions.exceptions import UnExpectedError
 from ..shared.pagination import PaginationParams, PaginatedResponse
 
@@ -271,17 +273,41 @@ async def delete_reply(
         raise e
 
 
-# @router.post("/{blog_id}/comment/{comment_id}/like")
-# async def like_comment(blog_id: str, comment_id: str):
-#     """
-#     Likes a specific comment on the specified blog post.
-#     """
-#     return f"Like comment {comment_id} on blog {blog_id} endpoint"
+@router.post("/comment/{comment_id}/like")
+async def like_comment(
+    comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    current_user: User = Depends(get_current_user),
+    like_service: LikeService = Depends(get_like_service),
+):
+    """
+    Likes a specific comment.
+    """
+    try:
+        return await like_service.like(current_user.id, comment_id, "comment")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-# @router.delete("/{blog_id}/comment/{comment_id}/unlike")
-# async def unlike_comment(blog_id: str, comment_id: str):
-#     """
-#     Unlikes a specific comment on the specified blog post.
-#     """
-#     return f"Unlike comment {comment_id} on blog {blog_id} endpoint"
+@router.delete("/comment/{comment_id}/unlike")
+async def unlike_comment(
+    comment_id: str = Path(
+        ...,
+        regex="^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$",
+    ),
+    current_user: User = Depends(get_current_user),
+    like_service: LikeService = Depends(get_like_service),
+):
+    """
+    Unlikes a specific comment.
+    """
+    try:
+        return await like_service.unlike(current_user.id, comment_id, "comment")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

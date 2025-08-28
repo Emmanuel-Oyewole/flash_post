@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from click import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.orm import selectinload
 
 from ..models.like_model import Like
@@ -33,8 +33,11 @@ class CommentRepository:
             )
 
         result = await self.db.execute(query)
+        comment = result.scalar_one_or_none()
+        if not comment:
+            raise Exception("comment does not exist")
 
-        return result.scalar_one_or_none()
+        return comment
 
     async def list_by_blog(
         self, blog_id: str, pagination: PaginationParams, load_relation: bool = True
@@ -260,6 +263,34 @@ class CommentRepository:
             return True
 
         return False
+
+    async def increment_like_count(self, comment_id: str) -> None:
+        """
+        Increment comment count
+        """
+        stmt = (
+            update(Comment)
+            .where(Comment.id == comment_id)
+            .values(like_count=Comment.like_count + 1)
+        )
+
+        await self.db.execute(stmt)
+
+        await self.db.commit()
+
+    async def decrement_like_count(self, comment_id: str) -> None:
+        """
+        Increment comment count
+        """
+        stmt = (
+            update(Comment)
+            .where(Comment.id == comment_id)
+            .values(like_count=Comment.like_count - 1)
+        )
+
+        await self.db.execute(stmt)
+
+        await self.db.commit()
 
     # async def get_like(
     #     self, target_id: str, user_id: str, target_type: str
