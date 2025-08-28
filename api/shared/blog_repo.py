@@ -14,6 +14,7 @@ from ..blogs.schema import BlogFilters
 from ..shared.pagination import PaginationParams, PaginatedResponse
 from ..models import blog_tags
 from ..models import Comment
+from ..exceptions.exceptions import BlogNotFoundError
 
 
 class BlogRepository:
@@ -53,8 +54,8 @@ class BlogRepository:
 
         # Get the single result or None if not found
         blog = result.scalar_one_or_none()
-        print(blog)
-
+        if not blog:
+            raise Exception("Blog does not exist")
         return blog
 
     async def get_by_slug(
@@ -333,6 +334,34 @@ class BlogRepository:
             update(Blog)
             .where(Blog.id == blog_id)
             .values(view_count=Blog.view_count + 1)
+        )
+
+        await self.db.execute(stmt)
+
+        await self.db.commit()
+
+    async def increment_like_count(self, blog_id: str) -> None:
+        """
+        Increment comment count
+        """
+        stmt = (
+            update(Blog)
+            .where(Blog.id == blog_id)
+            .values(like_count=Blog.like_count + 1)
+        )
+
+        await self.db.execute(stmt)
+
+        await self.db.commit()
+
+    async def decrement_like_count(self, blog_id: str) -> None:
+        """
+        Increment comment count
+        """
+        stmt = (
+            update(Blog)
+            .where(Blog.id == blog_id)
+            .values(like_count=Blog.like_count - 1)
         )
 
         await self.db.execute(stmt)
