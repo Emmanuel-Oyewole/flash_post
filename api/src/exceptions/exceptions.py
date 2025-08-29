@@ -75,3 +75,7 @@ class UnExpectedUpdateError(FlashBlogException):
     """Raised when an unexpected error occurs."""
 
     pass
+
+class LikeConflictError(FlashBlogException):
+    """Raised when there is a like conflict"""
+    pass

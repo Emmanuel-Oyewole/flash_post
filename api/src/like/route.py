@@ -25,10 +25,8 @@ async def like_blog(
     """
     try:
         return await like_service.like(current_user.id, blog_id, "blog")
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise e
 
 
 @router.delete(

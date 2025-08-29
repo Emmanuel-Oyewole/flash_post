@@ -1,10 +1,12 @@
+from uuid import uuid4
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_, or_, func, desc, asc, text, select, insert, update
 from sqlalchemy.exc import IntegrityError
-from uuid import uuid4
-from datetime import datetime, timezone
+from fastapi import status
+
 
 from ..config.helpers import logger
 from ..models import Blog
@@ -55,7 +57,9 @@ class BlogRepository:
         # Get the single result or None if not found
         blog = result.scalar_one_or_none()
         if not blog:
-            raise Exception("Blog does not exist")
+            raise BlogNotFoundError(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Blog does not exist"
+            )
         return blog
 
     async def get_by_slug(
@@ -76,6 +80,9 @@ class BlogRepository:
 
         result = await self.db.execute(query)
 
+        if not result:
+            raise BlogNotFoundError(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Blog does not exist")
         # Get the single result or None if not found
         return result.scalar_one_or_none()
 
