@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from pydantic import Tag
 from uuid import UUID
 from fastapi import status
 from sqlalchemy.exc import IntegrityError
@@ -20,7 +19,7 @@ from ..shared.blog_repo import BlogRepository
 from ..shared.tag_repo import TagRepository
 from ..shared.user_repo import UserRepository
 from ..shared.pagination import PaginationParams, PaginatedResponse
-from api.utils.slug_helper import generate_seo_optimized_slug
+from ..utils.slug_helper import generate_seo_optimized_slug
 from ..config.helpers import logger
 from ..exceptions.exceptions import (
     BlogNotFoundError,

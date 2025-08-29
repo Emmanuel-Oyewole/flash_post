@@ -12,7 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from api.config.database import Base
+from ..config.database import Base
 
 # Association table for Blog-Tag many-to-many relationship
 blog_tags = Table(
