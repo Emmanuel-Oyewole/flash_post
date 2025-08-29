@@ -3,7 +3,7 @@ from sqlalchemy import String, DateTime, Boolean, Text, Integer, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from api.config.database import Base
+from ..config.database import Base
 
 
 class Comment(Base):

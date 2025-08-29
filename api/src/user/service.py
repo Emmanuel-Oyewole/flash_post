@@ -1,8 +1,8 @@
 from fastapi import HTTPException, status
 from .schema import CreateUser, UpdateUser
 from ..models import User
-from api.config.database import get_db_session
-from api.utils.auth import hash_password
+from ..config.database import get_db_session
+from ..utils.auth import hash_password
 from ..shared.user_repo import UserRepository
 
 

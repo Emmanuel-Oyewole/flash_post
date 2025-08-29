@@ -1,10 +1,5 @@
 from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import os
-from pathlib import Path
-
-# Get the project root directory (two levels up from this file)
-PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -50,7 +45,7 @@ class Settings(BaseSettings):
     includes_uppercase: bool = True
 
     model_config = SettingsConfigDict(
-        env_file=PROJECT_ROOT / ".env",
+        env_file=".env",
         case_sensitive=False,
         extra="ignore",
         env_file_encoding="utf-8",

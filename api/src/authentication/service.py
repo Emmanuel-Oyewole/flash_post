@@ -2,7 +2,7 @@ from datetime import timedelta
 import uuid
 from fastapi import BackgroundTasks, HTTPException, status
 
-from api.shared.otp_repo import OTPRepository
+from ..shared.otp_repo import OTPRepository
 from ..models import User
 from ..config.settings import settings
 from ..config.helpers import logger
