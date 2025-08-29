@@ -5,11 +5,13 @@ from click import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import desc, func, select, update
 from sqlalchemy.orm import selectinload
+from fastapi import status
 
 from ..models.like_model import Like
 from ..models import Comment
 from ..comment.schema import CommentCreate
 from ..shared.pagination import PaginationParams, PaginatedResponse
+from ..exceptions.exceptions import CommentError
 
 
 class CommentRepository:
@@ -35,8 +37,10 @@ class CommentRepository:
         result = await self.db.execute(query)
         comment = result.scalar_one_or_none()
         if not comment:
-            raise Exception("comment does not exist")
-
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"comment with ID:{comment_id} does not exist",
+            )
         return comment
 
     async def list_by_blog(
@@ -106,7 +110,10 @@ class CommentRepository:
             comment = result.scalar_one_or_none()
 
             if not comment:
-                return False
+                raise CommentError(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"comment with ID:{comment_id} does not exist",
+                )
 
             await self.db.delete(comment)
             await self.db.commit()
@@ -134,8 +141,9 @@ class CommentRepository:
             parent_comment = parent_result.scalar_one_or_none()
 
             if not parent_comment:
-                raise ValueError(
-                    "Parent comment not found or doesn't belong to this blog"
+                raise CommentError(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Parent comment with ID: {parent_id} does not exist.",
                 )
 
             # Create reply
@@ -231,7 +239,10 @@ class CommentRepository:
         reply = result.scalar_one_or_none()
 
         if not reply:
-            return None
+            raise CommentError(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"comment with ID:{parent_comment_id} id not associated with reply with ID: {reply_id}",
+            )
 
         # Update content
         reply.content = content

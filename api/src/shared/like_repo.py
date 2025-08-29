@@ -1,8 +1,10 @@
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
+from fastapi import status
 from uuid import UUID
 from ..models.like_model import Like
+from ..exceptions.exceptions import LikeConflictError
 
 
 class LikeRepository:
@@ -27,7 +29,10 @@ class LikeRepository:
         # Prevent duplicate like
         existing_like = await self.get_like(user_id, target_id, target_type)
         if existing_like:
-            raise ValueError(f"user with id: {user_id} already liked entity")
+            raise LikeConflictError(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"user with id: {user_id} already liked entity",
+            )
         like_data = {
             "user_id": user_id,
             "blog_id": target_id if target_type == "blog" else None,
@@ -42,7 +47,10 @@ class LikeRepository:
     async def delete_like(self, user_id: str, target_id: str, target_type: str) -> bool:
         existing_like = await self.get_like(user_id, target_id, target_type)
         if not existing_like:
-            raise ValueError(f"user with id: {user_id} has not liked entity before")
+            raise LikeConflictError(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"user with id: {user_id} has not liked entity before",
+            )
         await self.db.delete(existing_like)
         await self.db.commit()
         return True
