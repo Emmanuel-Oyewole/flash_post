@@ -16,6 +16,105 @@ dependencies = [
     "redis>=6.2.0",
     "fastapi-mail>=1.5.0",
     "python-slugify>=8.0.4",
-    "pytest>=8.4.1",
+]
+
+[dependency-groups]
+dev = [
+    "factory-boy>=3.3.3",
     "httpx>=0.27.2",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.12.0",
+    "pytest-timeout>=2.2.0",
+]
+
+[tool.pytest.ini_options]
+# Pytest configuration for the Flash Post API
+
+# Test discovery
+testpaths = ["test"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Minimum version
+minversion = "7.0"
+
+# Add options
+addopts = [
+    "-v",                    # Verbose output
+    "--strict-markers",      # Raise error on unknown markers
+    "--strict-config",       # Raise error on unknown config options
+    "--tb=short",           # Short traceback format
+    "--asyncio-mode=auto",   # Auto detect async tests
+    "--cov=src",            # Coverage for src directory
+    "--cov-report=term-missing",  # Show missing lines in coverage
+    "--cov-report=html:htmlcov",  # Generate HTML coverage report
+    "--cov-fail-under=80",   # Fail if coverage below 80%
+    "--maxfail=5",          # Stop after 5 failures
+    "--durations=10",       # Show 10 slowest tests
+]
+
+# Test markers
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests", 
+    "slow: Slow running tests",
+    "auth: Authentication related tests",
+    "blog: Blog related tests",
+    "user: User related tests",
+    "comment: Comment related tests",
+    "like: Like related tests",
+    "tag: Tag related tests",
+    "performance: Performance tests",
+    "database: Database tests",
+    "api: API endpoint tests",
+    "service: Service layer tests",
+    "model: Model tests",
+    "security: Security tests",
+    "validation: Validation tests",
+    "error: Error handling tests",
+]
+
+# Asyncio configuration
+asyncio_mode = "auto"
+
+# Filterwarnings
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+# Logging
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+
+# Test timeout
+timeout = 300
+
+[tool.coverage.run]
+# Coverage configuration
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test/*", 
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "*/alembic/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+# Coverage reporting
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
 ]

@@ -1,19 +1,19 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.config.database import sessionmanager
-from src.config.redis_db import redis_manager
-from src.user import router as user_router
-from src.authentication import router as auth_router
-from src.blogs import router as blog_router
-from src.comment import router as comment_router
-from src.like import router as like_router
-from src.tag import router as tag_router
-from src.models import User  # noqa
-from src.models import Blog  # noqa
-from src.models import Comment  # noqa
-from src.models import Like  # noqa
-from src.models import Tag, blog_tags  # noqa
+from .config.database import sessionmanager
+from .config.redis_db import redis_manager
+from .user import router as user_router
+from .authentication import router as auth_router
+from .blogs import router as blog_router
+from .comment import router as comment_router
+from .like import router as like_router
+from .tag import router as tag_router
+from .models import User  # noqa
+from .models import Blog  # noqa
+from .models import Comment  # noqa
+from .models import Like  # noqa
+from .models import Tag, blog_tags  # noqa
 
 
 @asynccontextmanager
